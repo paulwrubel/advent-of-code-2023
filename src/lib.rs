@@ -26,7 +26,7 @@ mod day25;
 
 pub const UNIMPLEMENTED: &str = "__UNIMPLEMENTED__";
 
-pub fn run(day: u32) -> String {
+pub fn run(day: u32) -> (String, String) {
     match day {
         1 => day01::run(),
         2 => day02::run(),

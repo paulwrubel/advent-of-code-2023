@@ -27,11 +27,13 @@ fn main() -> Result<(), String> {
 }
 
 fn run_and_print_day(day: u32, hide_unimplemented: bool) {
-    let output = run(day);
-    if hide_unimplemented && output == UNIMPLEMENTED {
-        return;
+    let (part_one, part_two) = run(day);
+    if !(hide_unimplemented && part_one == UNIMPLEMENTED) {
+        println!("Day {day:>2}, part one: {part_one}");
     }
-    println!("Day {day:>2}: {output}");
+    if !(hide_unimplemented && part_two == UNIMPLEMENTED) {
+        println!("Day {day:>2}, part two: {part_two}");
+    }
 }
 
 fn get_days(args: Vec<String>) -> Result<Days, String> {
