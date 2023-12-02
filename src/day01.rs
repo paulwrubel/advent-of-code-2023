@@ -19,7 +19,8 @@ pub fn run(epart: ExclusivePart) -> Result<String, AdventError> {
 
 fn part_one() -> Result<String, AdventError> {
     // read input file
-    let input = fs::read_to_string(INPUT_FILE).expect("Error reading input file");
+    let input =
+        fs::read_to_string(INPUT_FILE).map_err(|err| AdventError::Other(err.to_string()))?;
 
     let calibration_values: Result<Vec<u32>, AdventError> = input
         .lines()
