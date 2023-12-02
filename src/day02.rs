@@ -1,13 +1,16 @@
-use crate::UNIMPLEMENTED;
+use crate::{AdventError, ExclusivePart};
 
-pub fn run() -> (String, String) {
-    (part_one(), part_two())
+pub fn run(epart: ExclusivePart) -> Result<String, AdventError> {
+    match epart {
+        ExclusivePart::One => part_one(),
+        ExclusivePart::Two => part_two(),
+    }
 }
 
-fn part_one() -> String {
-    UNIMPLEMENTED.to_string()
+fn part_one() -> Result<String, AdventError> {
+    Err(AdventError::Unimplemented)
 }
 
-fn part_two() -> String {
-    UNIMPLEMENTED.to_string()
+fn part_two() -> Result<String, AdventError> {
+    Err(AdventError::Unimplemented)
 }

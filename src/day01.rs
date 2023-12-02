@@ -1,4 +1,6 @@
-use std::{fs, str::FromStr};
+use std::fs;
+
+use crate::{AdventError, ExclusivePart};
 
 const INPUT_FILE: &str = "./resources/day01_input.txt";
 
@@ -8,61 +10,79 @@ enum Extrema {
     Last,
 }
 
-pub fn run() -> (String, String) {
-    ("???".to_string(), part_two())
+pub fn run(epart: ExclusivePart) -> Result<String, AdventError> {
+    match epart {
+        ExclusivePart::One => part_one(),
+        ExclusivePart::Two => part_two(),
+    }
 }
 
-fn part_one() -> String {
+fn part_one() -> Result<String, AdventError> {
     // read input file
     let input = fs::read_to_string(INPUT_FILE).expect("Error reading input file");
 
-    let calibration_values = input.lines().map(|line| -> u32 {
-        let first_digit = line
-            .chars()
-            .find(|char| char.is_numeric())
-            .expect("Couldn't find first digit (bad input?)");
+    let calibration_values: Result<Vec<u32>, AdventError> = input
+        .lines()
+        .map(|line| -> Result<u32, AdventError> {
+            let first_digit = match line.chars().find(|char| char.is_numeric()) {
+                Some(char) => char,
+                None => {
+                    return Err(AdventError::Other(
+                        "Couldn't find first digit (bad input?)".to_string(),
+                    ))
+                }
+            };
 
-        let last_digit = line
-            .chars()
-            .rev()
-            .find(|char| char.is_numeric())
-            .expect("Couldn't find last digit (bad input?)");
+            let last_digit = match line.chars().rev().find(|char| char.is_numeric()) {
+                Some(char) => char,
+                None => {
+                    return Err(AdventError::Other(
+                        "Couldn't find last digit (bad input?)".to_string(),
+                    ))
+                }
+            };
 
-        let mut value_string = String::new();
-        value_string.push(first_digit);
-        value_string.push(last_digit);
+            let mut value_string = String::new();
+            value_string.push(first_digit);
+            value_string.push(last_digit);
 
-        value_string
-            .parse()
-            .expect("Couldn't parse concatenated digits! (how...?)")
-    });
+            value_string
+                .parse::<u32>()
+                .map_err(|err| AdventError::Other(err.to_string()))
+        })
+        .collect();
 
-    calibration_values.sum::<u32>().to_string()
+    Ok(calibration_values?.iter().sum::<u32>().to_string())
 }
 
-fn part_two() -> String {
+fn part_two() -> Result<String, AdventError> {
     // read input file
     let input = fs::read_to_string(INPUT_FILE).expect("Error reading input file");
 
-    let calibration_values = input.lines().map(|line| -> u32 {
-        let first_digit = get_digit(line, Extrema::First);
-        let last_digit = get_digit(line, Extrema::Last);
+    let calibration_values: Result<Vec<u32>, AdventError> = input
+        .lines()
+        .map(|line| -> Result<u32, AdventError> {
+            let first_digit = get_digit(line, Extrema::First).ok_or(AdventError::Other(
+                "Couldn't find first digit (bad input?)".to_string(),
+            ))?;
+            let last_digit = get_digit(line, Extrema::Last).ok_or(AdventError::Other(
+                "Couldn't find last digit (bad input?)".to_string(),
+            ))?;
 
-        let mut value_string = String::new();
-        value_string.push_str(first_digit.to_string().as_str());
-        value_string.push_str(last_digit.to_string().as_str());
+            let mut value_string = String::new();
+            value_string.push_str(first_digit.to_string().as_str());
+            value_string.push_str(last_digit.to_string().as_str());
 
-        println!("{}: {}", value_string, line);
+            value_string
+                .parse::<u32>()
+                .map_err(|err| AdventError::Other(err.to_string()))
+        })
+        .collect();
 
-        value_string
-            .parse()
-            .expect("Couldn't parse concatenated digits! (how...?)")
-    });
-
-    calibration_values.sum::<u32>().to_string()
+    Ok(calibration_values?.iter().sum::<u32>().to_string())
 }
 
-fn get_digit(s: &str, extrema: Extrema) -> u32 {
+fn get_digit(s: &str, extrema: Extrema) -> Option<u32> {
     let char = get_digit_char(s, extrema);
     let word = get_digit_word(s, extrema);
 
@@ -75,19 +95,16 @@ fn get_digit(s: &str, extrema: Extrema) -> u32 {
             Extrema::Last => char_index > word_index,
         };
         if use_char {
-            char_digit
+            Some(char_digit)
         } else {
-            word_digit
+            Some(word_digit)
         }
     } else if char.is_some() {
-        char.unwrap().1
+        Some(char.unwrap().1)
     } else if word.is_some() {
-        word.unwrap().1
+        Some(word.unwrap().1)
     } else {
-        panic!(
-            "Couldn't find extrema digit in: {} for extrema: {:?}",
-            s, extrema
-        )
+        None
     }
 }
 
