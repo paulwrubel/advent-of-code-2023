@@ -127,7 +127,7 @@ fn part_two() -> Result<String, AdventError> {
         .collect();
 
     // find asterisks
-    let mut ast_locations = rows
+    let ast_locations = rows
         .iter()
         .enumerate()
         .map(|(row_index, row)| {

@@ -99,7 +99,7 @@ fn part_two() -> Result<String, AdventError> {
         }
         for copy_num in (card_num + 1)..=((card_num + match_count).min(max_card_num)) {
             // add a copy of the cards we won
-            let (old_count, new_count) =
+            let (_old_count, _new_count) =
                 if let Some(current_won_card_count) = card_counts.get_mut(&copy_num) {
                     let old_instance_count = *current_won_card_count;
                     let new_instance_count = *current_won_card_count + current_card_instance_count;
