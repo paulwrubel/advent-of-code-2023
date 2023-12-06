@@ -57,7 +57,7 @@ fn part_two() -> Result<String, AdventError> {
     // parse input
     for line in input.lines() {
         let mut split = line.split(':');
-        let _game_id = integers_from_string(split.next().unwrap(), " ")[0];
+        let _game_id = integers_from_string::<i32>(split.next().unwrap(), " ")[0];
         let reveals: Vec<&str> = split.next().unwrap().split(';').collect();
 
         let reveals = reveals.iter().map(|s| {
