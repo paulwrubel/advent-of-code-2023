@@ -268,7 +268,7 @@ struct UnparsedRange {
     length: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct ParsedRange {
     source_range: ops::Range<u64>,
     offset: i64,
@@ -277,6 +277,20 @@ struct ParsedRange {
 impl ParsedRange {
     fn contains(&self, n: &u64) -> bool {
         self.source_range.contains(n)
+    }
+
+    fn intersect(&self, other: &ParsedRange) -> Option<ParsedRange> {
+        let left = self.source_range.start.max(other.source_range.start);
+        let right = self.source_range.end.min(other.source_range.end);
+
+        if left < right {
+            Some(ParsedRange {
+                source_range: left..right,
+                offset: self.offset + other.offset,
+            })
+        } else {
+            None
+        }
     }
 }
 
@@ -287,5 +301,183 @@ impl From<UnparsedRange> for ParsedRange {
                 ..(unparsed_range.source_start + unparsed_range.length),
             offset: unparsed_range.destination_start as i64 - unparsed_range.source_start as i64,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisjointIntervalList {
+    intervals: Vec<ParsedRange>,
+}
+
+impl DisjointIntervalList {
+    pub fn new(intervals: Vec<ParsedRange>) -> Self {
+        Self { intervals }
+    }
+
+    pub fn intersect(&self, other: &Self) -> DisjointIntervalList {
+        let mut ai: usize = 0;
+        let mut bi: usize = 0;
+
+        let mut intersections = Vec::new();
+        while ai < self.intervals.len() && bi < other.intervals.len() {
+            let a = &self.intervals[ai];
+            let b = &other.intervals[bi];
+
+            if let Some(intersection) = a.intersect(b) {
+                intersections.push(intersection);
+            }
+
+            if a.source_range.end < b.source_range.end {
+                ai += 1;
+            } else {
+                bi += 1;
+            }
+        }
+
+        DisjointIntervalList {
+            intervals: intersections,
+        }
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_intersect_single() {
+        let a = DisjointIntervalList::new(vec![ParsedRange {
+            source_range: 0..10,
+            offset: 3,
+        }]);
+        let b = DisjointIntervalList::new(vec![ParsedRange {
+            source_range: 5..15,
+            offset: -2,
+        }]);
+
+        let a_and_b = a.intersect(&b);
+
+        assert_eq!(
+            a_and_b.intervals,
+            vec![ParsedRange {
+                source_range: 5..10,
+                offset: 1,
+            }]
+        );
+    }
+
+    #[test]
+    fn basic_intersect_double() {
+        let a = DisjointIntervalList::new(vec![
+            ParsedRange {
+                source_range: 0..10,
+                offset: 3,
+            },
+            ParsedRange {
+                source_range: 20..30,
+                offset: 9,
+            },
+        ]);
+        let b = DisjointIntervalList::new(vec![
+            ParsedRange {
+                source_range: 5..15,
+                offset: -2,
+            },
+            ParsedRange {
+                source_range: 15..25,
+                offset: 15,
+            },
+        ]);
+
+        let a_and_b = a.intersect(&b);
+
+        assert_eq!(
+            a_and_b.intervals,
+            vec![
+                ParsedRange {
+                    source_range: 5..10,
+                    offset: 1,
+                },
+                ParsedRange {
+                    source_range: 20..25,
+                    offset: 24,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn basic_intersect_single_overlapping() {
+        let a = DisjointIntervalList::new(vec![
+            ParsedRange {
+                source_range: 0..10,
+                offset: 3,
+            },
+            ParsedRange {
+                source_range: 20..30,
+                offset: 9,
+            },
+        ]);
+        let b = DisjointIntervalList::new(vec![ParsedRange {
+            source_range: 5..25,
+            offset: -4,
+        }]);
+
+        let a_and_b = a.intersect(&b);
+
+        assert_eq!(
+            a_and_b.intervals,
+            vec![
+                ParsedRange {
+                    source_range: 5..10,
+                    offset: -1,
+                },
+                ParsedRange {
+                    source_range: 20..25,
+                    offset: 5,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn basic_intersect_double_overlapping() {
+        let a = DisjointIntervalList::new(vec![
+            ParsedRange {
+                source_range: 0..10,
+                offset: 3,
+            },
+            ParsedRange {
+                source_range: 20..30,
+                offset: 9,
+            },
+            ParsedRange {
+                source_range: 40..50,
+                offset: 27,
+            },
+        ]);
+        let b = DisjointIntervalList::new(vec![ParsedRange {
+            source_range: 5..45,
+            offset: -2,
+        }]);
+
+        let a_and_b = a.intersect(&b);
+
+        assert_eq!(
+            a_and_b.intervals,
+            vec![
+                ParsedRange {
+                    source_range: 5..10,
+                    offset: 1,
+                },
+                ParsedRange {
+                    source_range: 20..30,
+                    offset: 7,
+                },
+                ParsedRange {
+                    source_range: 40..45,
+                    offset: 25,
+                },
+            ]
+        );
     }
 }
