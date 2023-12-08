@@ -9,7 +9,7 @@ use auto_ops::{impl_op, impl_op_ex};
 
 use crate::{utils, AdventError, ExclusivePart};
 
-const INPUT_FILE: &str = "./resources/day05_example.txt";
+const INPUT_FILE: &str = "./resources/day05_input.txt";
 
 pub fn run(epart: ExclusivePart) -> Result<String, AdventError> {
     match epart {
@@ -36,48 +36,64 @@ fn part_one() -> Result<String, AdventError> {
     // println!("B - (A & B)\t{}", b - intersection);
     // println!("A + B\t\t{}", a + b);
 
-    let seed_to_soil = &almanac.seed_to_soil;
-    println!("seed_to_soil:\t\t\t{}", seed_to_soil);
-    let seed_to_fertilizer = seed_to_soil + &almanac.soil_to_fertilizer;
-    println!("soil_to_fertilizer:\t\t{}", &almanac.soil_to_fertilizer);
-    println!("seed_to_fertilizer:\t\t{}", seed_to_fertilizer);
-    println!();
-    let fertilizer_to_water = &almanac.fertilizer_to_water;
-    println!("fertilizer_to_water:\t\t{}", fertilizer_to_water);
-    let seed_to_water = &seed_to_fertilizer + &fertilizer_to_water;
-    println!("seed_to_water:\t\t\t{}", seed_to_water);
+    // let seed_to_soil = &almanac.seed_to_soil;
+    // println!("seed_to_soil:\t\t\t{}", seed_to_soil);
+    // println!();
+    // let soil_to_fertilizer = &almanac.soil_to_fertilizer;
+    // println!("soil_to_fertilizer:\t\t{}", soil_to_fertilizer);
+    // let seed_to_fertilizer = seed_to_soil.merge_debug(soil_to_fertilizer);
+    // println!("seed_to_fertilizer:\t\t{}", seed_to_fertilizer);
+    // println!();
+    // let fertilizer_to_water = &almanac.fertilizer_to_water;
+    // println!("fertilizer_to_water:\t\t{}", fertilizer_to_water);
+    // let seed_to_water = &seed_to_fertilizer + &fertilizer_to_water;
+    // println!("seed_to_water:\t\t\t{}", seed_to_water);
 
     // let seed_to_water = &seed_to_fertilizer + &almanac.fertilizer_to_water;
-    let seed_to_light = &seed_to_water + &almanac.water_to_light;
-    let seed_to_temperature = &seed_to_light + &almanac.light_to_temperature;
-    let seed_to_humidity = &seed_to_temperature + &almanac.temperature_to_humidity;
-    let seed_to_location = &seed_to_humidity + &almanac.humidity_to_location;
+    // let seed_to_light = &seed_to_water + &almanac.water_to_light;
+    // let seed_to_temperature = &seed_to_light + &almanac.light_to_temperature;
+    // let seed_to_humidity = &seed_to_temperature + &almanac.temperature_to_humidity;
+    // let seed_to_location = &seed_to_humidity + &almanac.humidity_to_location;
 
-    println!();
-    let mut min_location = u64::MAX;
-    for seed_id in almanac.seed_ids(false) {
-        let soil_id = seed_to_soil.convert(seed_id);
-        let fertilizer_id = seed_to_fertilizer.convert(seed_id);
-        let water_id = seed_to_water.convert(seed_id);
-        let light_id = seed_to_light.convert(seed_id);
-        let temperature_id = seed_to_temperature.convert(seed_id);
-        let humidity_id = seed_to_humidity.convert(seed_id);
-        let location_id = seed_to_location.convert(seed_id);
+    let seed_to_location = almanac.seed_to_location_intervals();
 
-        // println!("seed: {seed_id}, soil: {soil_id}, fertilizer1: {fertilizer_id_1}, fertilizer2: {fertilizer_id_2}");
+    let seed_id_ranges = almanac.seed_id_ranges(false);
 
-        // let location_id = almanac.seed_to_location(seed_id);
+    let final_ranges = &seed_id_ranges & &seed_to_location;
 
-        println!(
-            "seed: {seed_id}, soil: {soil_id}, fertilizer: {fertilizer_id}, water: {water_id}, light: {light_id}, temperature: {temperature_id}, humidity: {humidity_id}, location: {location_id}"
-        );
+    println!("final_ranges:\t\t\t{}", final_ranges);
 
-        min_location = min_location.min(location_id);
-    }
+    let minimum_location = final_ranges.minimum_output().unwrap();
+
+    // println!();
+    // let mut min_location = i64::MAX;
+    // for seed_id in almanac.seed_ids(false) {
+    //     let seed_id = seed_id as i64;
+
+    //     let location_id = seed_to_location.convert(seed_id);
+
+    //     // let soil_id = seed_to_soil.convert(seed_id);
+    //     // let fertilizer_id = seed_to_fertilizer.convert(seed_id);
+    //     // let water_id = seed_to_water.convert(seed_id);
+    //     // let light_id = seed_to_light.convert(seed_id);
+    //     // let temperature_id = seed_to_temperature.convert(seed_id);
+    //     // let humidity_id = seed_to_humidity.convert(seed_id);
+    //     // let location_id = seed_to_location.convert(seed_id);
+
+    //     // println!("seed: {seed_id}, soil: {soil_id}, fertilizer1: {fertilizer_id_1}, fertilizer2: {fertilizer_id_2}");
+
+    //     // let location_id = almanac.seed_to_location(seed_id);
+
+    //     // println!(
+    //     //     "seed: {seed_id}, soil: {soil_id}, fertilizer: {fertilizer_id}, water: {water_id}, light: {light_id}, temperature: {temperature_id}, humidity: {humidity_id}, location: {location_id}"
+    //     // );
+
+    //     min_location = min_location.min(location_id);
+    // }
 
     println!("Elapsed: {:.2?}", start.elapsed());
 
-    Ok(min_location.to_string())
+    Ok(minimum_location.to_string())
 }
 
 fn part_two() -> Result<String, AdventError> {
@@ -90,42 +106,54 @@ fn part_two() -> Result<String, AdventError> {
     println!("building almanac...");
     let almanac = Almanac::build_from_string(&input);
 
-    let len = almanac.seed_ids_len(true) as u64;
-    println!("{} seeds", len);
+    let seed_to_location = almanac.seed_to_location_intervals();
 
-    let ids = almanac.seed_ids(true);
-    let mut processed_seeds = 0 as u64;
-    let mut minimum_location = u64::MAX;
-    for seed_id in ids {
-        let location_id = almanac.seed_to_location(seed_id);
+    let seed_id_ranges = almanac.seed_id_ranges(true);
 
-        minimum_location = minimum_location.min(location_id);
-        processed_seeds += 1;
+    let final_ranges = &seed_id_ranges & &seed_to_location;
 
-        // println!(
-        //     "seed: {seed_id}, soil: {soil_id}, fertilizer: {fertilizer_id}, water: {water_id}, light: {light_id}, temperature: {temperature_id}, humidity: {humidity_id}, location: {location_id}"
-        // )
+    println!("final_ranges:\t\t\t{}", final_ranges);
 
-        if processed_seeds % 30_000_000 == 0 {
-            let duration_so_far = start.elapsed();
-            // println!("b");
-            let ratio_seeds_processed = processed_seeds as f64 / len as f64;
-            // println!("{}", ratio_seeds_processed);
+    let minimum_location = final_ranges.minimum_output().unwrap();
 
-            let predicted_time = duration_so_far.mul_f64(1.0 / ratio_seeds_processed);
-            // println!("b");
-            let remaining_time = predicted_time - duration_so_far;
-            // println!("b");
+    // let len = almanac.seed_ids_len(true) as u64;
+    // println!("{} seeds", len);
 
-            println!(
-                "processed seeds: {} / {} ({:>6.2}% | est. {} remaining...)",
-                processed_seeds,
-                len,
-                ratio_seeds_processed * 100.0,
-                utils::format_duration(remaining_time)
-            );
-        }
-    }
+    // let ids = almanac.seed_ids(true);
+    // let mut processed_seeds = 0 as u64;
+    // let mut minimum_location = i64::MAX;
+    // for seed_id in ids {
+    //     let seed_id = seed_id as i64;
+
+    //     let location_id = almanac.seed_to_location(seed_id);
+
+    //     minimum_location = minimum_location.min(location_id);
+    //     processed_seeds += 1;
+
+    //     // println!(
+    //     //     "seed: {seed_id}, soil: {soil_id}, fertilizer: {fertilizer_id}, water: {water_id}, light: {light_id}, temperature: {temperature_id}, humidity: {humidity_id}, location: {location_id}"
+    //     // )
+
+    //     if processed_seeds % 30_000_000 == 0 {
+    //         let duration_so_far = start.elapsed();
+    //         // println!("b");
+    //         let ratio_seeds_processed = processed_seeds as f64 / len as f64;
+    //         // println!("{}", ratio_seeds_processed);
+
+    //         let predicted_time = duration_so_far.mul_f64(1.0 / ratio_seeds_processed);
+    //         // println!("b");
+    //         let remaining_time = predicted_time - duration_so_far;
+    //         // println!("b");
+
+    //         println!(
+    //             "processed seeds: {} / {} ({:>6.2}% | est. {} remaining...)",
+    //             processed_seeds,
+    //             len,
+    //             ratio_seeds_processed * 100.0,
+    //             utils::format_duration(remaining_time)
+    //         );
+    //     }
+    // }
 
     println!("Elapsed: {:.2?}", start.elapsed());
 
@@ -133,15 +161,15 @@ fn part_two() -> Result<String, AdventError> {
 }
 
 struct Almanac {
-    seed_ids: Vec<u64>,
+    seed_ids: Vec<i64>,
 
-    seed_to_soil_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    soil_to_fertilizer_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    fertilizer_to_water_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    water_to_light_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    light_to_temperature_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    temperature_to_humidity_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    humidity_to_location_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    seed_to_soil_func: Box<dyn Fn(i64) -> i64 + Sync + Send>,
+    soil_to_fertilizer_func: Box<dyn Fn(i64) -> i64 + Sync + Send>,
+    fertilizer_to_water_func: Box<dyn Fn(i64) -> i64 + Sync + Send>,
+    water_to_light_func: Box<dyn Fn(i64) -> i64 + Sync + Send>,
+    light_to_temperature_func: Box<dyn Fn(i64) -> i64 + Sync + Send>,
+    temperature_to_humidity_func: Box<dyn Fn(i64) -> i64 + Sync + Send>,
+    humidity_to_location_func: Box<dyn Fn(i64) -> i64 + Sync + Send>,
 
     seed_to_soil: SortedDisjointIntervalList,
     soil_to_fertilizer: SortedDisjointIntervalList,
@@ -164,7 +192,7 @@ impl Almanac {
 
         // parse seed ids
 
-        let seed_ids = utils::integers_from_string::<u64>(
+        let seed_ids = utils::integers_from_string::<i64>(
             lines.next().unwrap().split_once(':').unwrap().1.trim(),
             " ",
         );
@@ -253,7 +281,7 @@ impl Almanac {
     fn seed_ids(
         &self,
         interpret_as_ranges: bool,
-    ) -> Box<dyn Iterator<Item = u64> + '_ + Send + Sync> {
+    ) -> Box<dyn Iterator<Item = i64> + '_ + Send + Sync> {
         if interpret_as_ranges {
             let seed_ranges = self.get_seed_ranges();
             Box::new(seed_ranges.into_iter().flat_map(|range| range))
@@ -261,6 +289,30 @@ impl Almanac {
             let seed_ids_clone = self.seed_ids.clone();
             Box::new(seed_ids_clone.into_iter())
         }
+    }
+
+    fn seed_id_ranges(&self, interpret_as_ranges: bool) -> SortedDisjointIntervalList {
+        let seed_ranges: Vec<ParsedRange> = if interpret_as_ranges {
+            self.get_seed_ranges()
+                .into_iter()
+                .map(|range| ParsedRange {
+                    source_range: range,
+                    offset: 0,
+                    shift: 0,
+                })
+                .collect()
+        } else {
+            self.seed_ids
+                .clone()
+                .into_iter()
+                .map(|seed_id| ParsedRange {
+                    source_range: seed_id..(seed_id + 1),
+                    offset: 0,
+                    shift: 0,
+                })
+                .collect()
+        };
+        SortedDisjointIntervalList::new(seed_ranges)
     }
 
     fn seed_ids_len(&self, interpret_as_ranges: bool) -> usize {
@@ -274,7 +326,7 @@ impl Almanac {
         }
     }
 
-    fn get_seed_ranges(&self) -> Vec<ops::Range<u64>> {
+    fn get_seed_ranges(&self) -> Vec<ops::Range<i64>> {
         let mut seed_iter = self.seed_ids.iter();
         let mut iter_ranges = Vec::new();
         // println!("getting seed ranges...");
@@ -293,7 +345,7 @@ impl Almanac {
         iter_ranges
     }
 
-    fn seed_to_location(&self, seed_id: u64) -> u64 {
+    fn seed_to_location(&self, seed_id: i64) -> i64 {
         self.humidity_to_location(self.temperature_to_humidity(self.light_to_temperature(
             self.water_to_light(
                 self.fertilizer_to_water(self.soil_to_fertilizer(self.seed_to_soil(seed_id))),
@@ -301,37 +353,48 @@ impl Almanac {
         )))
     }
 
-    fn seed_to_soil(&self, seed_id: u64) -> u64 {
-        (self.seed_to_soil_func)(seed_id)
+    fn seed_to_location_intervals(&self) -> SortedDisjointIntervalList {
+        let seed_to_fertilizer = &self.seed_to_soil + &self.soil_to_fertilizer;
+        let seed_to_water = &seed_to_fertilizer + &self.fertilizer_to_water;
+        let seed_to_light = &seed_to_water + &self.water_to_light;
+        let seed_to_temperature = &seed_to_light + &self.light_to_temperature;
+        let seed_to_humidity = &seed_to_temperature + &self.temperature_to_humidity;
+        let seed_to_location = &seed_to_humidity + &self.humidity_to_location;
+
+        seed_to_location
     }
 
-    fn soil_to_fertilizer(&self, soil_id: u64) -> u64 {
-        (self.soil_to_fertilizer_func)(soil_id)
+    fn seed_to_soil(&self, seed_id: i64) -> i64 {
+        self.seed_to_soil.convert(seed_id)
     }
 
-    fn fertilizer_to_water(&self, fertilizer_id: u64) -> u64 {
-        (self.fertilizer_to_water_func)(fertilizer_id)
+    fn soil_to_fertilizer(&self, soil_id: i64) -> i64 {
+        self.soil_to_fertilizer.convert(soil_id)
     }
 
-    fn water_to_light(&self, water_id: u64) -> u64 {
-        (self.water_to_light_func)(water_id)
+    fn fertilizer_to_water(&self, fertilizer_id: i64) -> i64 {
+        self.fertilizer_to_water.convert(fertilizer_id)
     }
 
-    fn light_to_temperature(&self, light_id: u64) -> u64 {
-        (self.light_to_temperature_func)(light_id)
+    fn water_to_light(&self, water_id: i64) -> i64 {
+        self.water_to_light.convert(water_id)
     }
 
-    fn temperature_to_humidity(&self, temperature_id: u64) -> u64 {
-        (self.temperature_to_humidity_func)(temperature_id)
+    fn light_to_temperature(&self, light_id: i64) -> i64 {
+        self.light_to_temperature.convert(light_id)
     }
 
-    fn humidity_to_location(&self, humidity_id: u64) -> u64 {
-        (self.humidity_to_location_func)(humidity_id)
+    fn temperature_to_humidity(&self, temperature_id: i64) -> i64 {
+        self.temperature_to_humidity.convert(temperature_id)
+    }
+
+    fn humidity_to_location(&self, humidity_id: i64) -> i64 {
+        self.humidity_to_location.convert(humidity_id)
     }
 
     fn build_mapper_func(
         property_map: Vec<UnparsedRange>,
-    ) -> Box<dyn Fn(u64) -> u64 + Sync + Send> {
+    ) -> Box<dyn Fn(i64) -> i64 + Sync + Send> {
         // println!("property map: {:?}", property_map);
 
         let parsed_ranges: Vec<ParsedRange> = property_map
@@ -345,7 +408,7 @@ impl Almanac {
             for range in &parsed_ranges {
                 // println!("checking range... {:?}", range);
                 if range.contains(&n) {
-                    let new_n = (n as i64 + range.offset) as u64;
+                    let new_n = n + range.offset;
                     // println!("mapping {} -> {} (RANGE: {:?})", n, new_n, range);
                     return new_n;
                 }
@@ -365,23 +428,50 @@ struct UnparsedRange {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedRange {
-    pub source_range: ops::Range<u64>,
+    pub source_range: ops::Range<i64>,
     pub offset: i64,
+    pub shift: i64,
 }
 
 impl ParsedRange {
-    fn contains(&self, n: &u64) -> bool {
+    fn contains(&self, n: &i64) -> bool {
         self.source_range.contains(n)
     }
 
+    fn shift_by(&self, shift: i64) -> ParsedRange {
+        ParsedRange {
+            source_range: self.source_range.start + shift..self.source_range.end + shift,
+            offset: self.offset,
+            shift: self.shift + shift,
+        }
+    }
+
+    fn unshift(&self) -> ParsedRange {
+        self.shift_by(-self.shift)
+    }
+
+    fn project_onto(&self, other: &ParsedRange) -> Option<ParsedRange> {
+        let shift = self.offset;
+        let a = &self.shift_by(shift);
+        let b = other;
+
+        let intersection = a & b;
+
+        intersection.map(|i| i.shift_by(-shift))
+    }
+
     fn intersect(&self, other: &ParsedRange) -> Option<ParsedRange> {
-        let left = self.source_range.start.max(other.source_range.start);
-        let right = self.source_range.end.min(other.source_range.end);
+        let a = &self.source_range;
+        let b = &other.source_range;
+
+        let left = a.start.max(b.start);
+        let right = a.end.min(b.end);
 
         if left < right {
             Some(ParsedRange {
                 source_range: left..right,
                 offset: self.offset + other.offset,
+                shift: self.shift + other.shift,
             })
         } else {
             None
@@ -403,12 +493,14 @@ impl ParsedRange {
                     Some(vec![ParsedRange {
                         source_range: int.end..a.end,
                         offset: self.offset,
+                        shift: self.shift,
                     }])
                 } else if a.end == int.end {
                     // the right side will be clipped off, since that's where the intersection aligns
                     Some(vec![ParsedRange {
                         source_range: a.start..int.start,
                         offset: self.offset,
+                        shift: self.shift,
                     }])
                 } else {
                     // we completely encompass the intersection, so we must segment ourself
@@ -416,10 +508,12 @@ impl ParsedRange {
                         ParsedRange {
                             source_range: a.start..int.start,
                             offset: self.offset,
+                            shift: self.shift,
                         },
                         ParsedRange {
                             source_range: int.end..a.end,
                             offset: self.offset,
+                            shift: self.shift,
                         },
                     ])
                 }
@@ -443,9 +537,10 @@ impl Display for ParsedRange {
 impl From<UnparsedRange> for ParsedRange {
     fn from(unparsed_range: UnparsedRange) -> Self {
         ParsedRange {
-            source_range: unparsed_range.source_start
-                ..(unparsed_range.source_start + unparsed_range.length),
+            source_range: unparsed_range.source_start as i64
+                ..(unparsed_range.source_start + unparsed_range.length) as i64,
             offset: unparsed_range.destination_start as i64 - unparsed_range.source_start as i64,
+            shift: 0,
         }
     }
 }
@@ -461,11 +556,89 @@ impl SortedDisjointIntervalList {
         Self { intervals }
     }
 
-    pub fn convert(&self, value: u64) -> u64 {
+    pub fn convert(&self, value: i64) -> i64 {
         match self.intervals.iter().find(|range| range.contains(&value)) {
-            Some(range) => (value as i64 + range.offset) as u64,
+            Some(range) => value + range.offset,
             None => value,
         }
+    }
+
+    pub fn minimum_input(&self) -> Option<i64> {
+        self.intervals
+            .iter()
+            .map(|range| range.source_range.start)
+            .min()
+    }
+
+    pub fn maximum_input(&self) -> Option<i64> {
+        self.intervals
+            .iter()
+            .map(|range| range.source_range.end)
+            .max()
+    }
+
+    pub fn minimum_output(&self) -> Option<i64> {
+        self.intervals
+            .iter()
+            .map(|range| range.source_range.start + range.offset)
+            .min()
+    }
+
+    pub fn maximum_output(&self) -> Option<i64> {
+        self.intervals
+            .iter()
+            .map(|range| range.source_range.end + range.offset)
+            .max()
+    }
+
+    pub fn shift_by_offsets(&self) -> Self {
+        Self::new(
+            self.intervals
+                .iter()
+                .map(|range| range.shift_by(range.offset))
+                .collect(),
+        )
+    }
+
+    pub fn unshift(&self) -> Self {
+        Self::new(self.intervals.iter().map(|range| range.unshift()).collect())
+    }
+
+    pub fn project_onto(&self, other: &Self) -> Self {
+        let mut ai: usize = 0;
+        let mut bi: usize = 0;
+
+        let mut a_list = self
+            .intervals
+            .iter()
+            .map(|range| (range.shift_by(range.offset), range.offset))
+            .collect::<Vec<_>>();
+        a_list.sort_by(|a, b| a.0.source_range.start.cmp(&b.0.source_range.start));
+
+        let b_list = &other.intervals;
+
+        let mut projections = Vec::new();
+        while ai < a_list.len() && bi < b_list.len() {
+            let (a, shift) = &a_list[ai];
+            let b = &b_list[bi];
+
+            if let Some(projection) = a & b {
+                projections.push((projection, *shift));
+            }
+
+            if a.source_range.end < b.source_range.end {
+                ai += 1;
+            } else {
+                bi += 1;
+            }
+        }
+
+        SortedDisjointIntervalList::new(
+            projections
+                .iter()
+                .map(|(range, shift)| range.shift_by(-shift))
+                .collect(),
+        )
     }
 
     pub fn intersect(&self, other: &Self) -> SortedDisjointIntervalList {
@@ -516,7 +689,7 @@ impl SortedDisjointIntervalList {
         self.internal_merge(other, true)
     }
 
-    fn internal_merge(&self, other: &Self, debug: bool) -> SortedDisjointIntervalList {
+    fn internal_merge_legacy(&self, other: &Self, debug: bool) -> SortedDisjointIntervalList {
         let intersection = self & other;
         let sub_self = self - &intersection;
         let sub_other = other - &intersection;
@@ -537,6 +710,36 @@ impl SortedDisjointIntervalList {
             println!("A & B:\t\t{}", intersection);
             println!("A - (A & B)\t{}", sub_self);
             println!("B - (A & B)\t{}", sub_other);
+            println!("A + B\t\t{}", res);
+        }
+
+        res
+    }
+
+    fn internal_merge(&self, other: &Self, debug: bool) -> SortedDisjointIntervalList {
+        let self_shifted = self.shift_by_offsets();
+        let projection_intersection = &self_shifted & &other;
+        let sub_self = &self_shifted - &projection_intersection;
+        let sub_other = other - &projection_intersection;
+
+        let res = SortedDisjointIntervalList::new(
+            sub_self
+                .intervals
+                .iter()
+                .chain(sub_other.intervals.iter())
+                .chain(projection_intersection.intervals.iter())
+                .cloned()
+                .collect(),
+        )
+        .unshift();
+
+        if debug {
+            println!("A\t\t{}", self);
+            println!("B\t\t{}", other);
+            println!("A shift\t\t{}", self.shift_by_offsets());
+            println!("A proj B\t{}", projection_intersection);
+            println!("A - (A proj B)\t{}", sub_self);
+            println!("B - (A proj B)\t{}", sub_other);
             println!("A + B\t\t{}", res);
         }
 
@@ -589,10 +792,12 @@ mod tests {
         let a = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 0..10,
             offset: 3,
+            shift: 0,
         }]);
         let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..15,
             offset: -2,
+            shift: 0,
         }]);
 
         let a_and_b = &a & &b;
@@ -602,6 +807,7 @@ mod tests {
             vec![ParsedRange {
                 source_range: 5..10,
                 offset: 1,
+                shift: 0,
             }]
         );
     }
@@ -611,10 +817,12 @@ mod tests {
         let a = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 0..10,
             offset: 3,
+            shift: 0,
         }]);
         let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..15,
             offset: -2,
+            shift: 0,
         }]);
 
         let a_minus_b = &a - &b;
@@ -624,6 +832,7 @@ mod tests {
             vec![ParsedRange {
                 source_range: 0..5,
                 offset: 3,
+                shift: 0,
             }]
         );
     }
@@ -634,20 +843,24 @@ mod tests {
             ParsedRange {
                 source_range: 0..10,
                 offset: 3,
+                shift: 0,
             },
             ParsedRange {
                 source_range: 20..30,
                 offset: 9,
+                shift: 0,
             },
         ]);
         let b = SortedDisjointIntervalList::new(vec![
             ParsedRange {
                 source_range: 5..15,
                 offset: -2,
+                shift: 0,
             },
             ParsedRange {
                 source_range: 15..25,
                 offset: 15,
+                shift: 0,
             },
         ]);
 
@@ -659,10 +872,12 @@ mod tests {
                 ParsedRange {
                     source_range: 5..10,
                     offset: 1,
+                    shift: 0,
                 },
                 ParsedRange {
                     source_range: 20..25,
                     offset: 24,
+                    shift: 0,
                 },
             ]
         );
@@ -674,20 +889,24 @@ mod tests {
             ParsedRange {
                 source_range: 0..10,
                 offset: 3,
+                shift: 0,
             },
             ParsedRange {
                 source_range: 20..30,
                 offset: 9,
+                shift: 0,
             },
         ]);
         let b = SortedDisjointIntervalList::new(vec![
             ParsedRange {
                 source_range: 5..15,
                 offset: -2,
+                shift: 0,
             },
             ParsedRange {
                 source_range: 15..25,
                 offset: 15,
+                shift: 0,
             },
         ]);
 
@@ -699,10 +918,12 @@ mod tests {
                 ParsedRange {
                     source_range: 0..5,
                     offset: 3,
+                    shift: 0,
                 },
                 ParsedRange {
                     source_range: 25..30,
                     offset: 9,
+                    shift: 0,
                 },
             ]
         );
@@ -714,15 +935,18 @@ mod tests {
             ParsedRange {
                 source_range: 0..10,
                 offset: 3,
+                shift: 0,
             },
             ParsedRange {
                 source_range: 20..30,
                 offset: 9,
+                shift: 0,
             },
         ]);
         let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..25,
             offset: -4,
+            shift: 0,
         }]);
 
         let a_and_b = &a & &b;
@@ -733,10 +957,12 @@ mod tests {
                 ParsedRange {
                     source_range: 5..10,
                     offset: -1,
+                    shift: 0,
                 },
                 ParsedRange {
                     source_range: 20..25,
                     offset: 5,
+                    shift: 0,
                 },
             ]
         );
@@ -748,19 +974,23 @@ mod tests {
             ParsedRange {
                 source_range: 0..10,
                 offset: 3,
+                shift: 0,
             },
             ParsedRange {
                 source_range: 20..30,
                 offset: 9,
+                shift: 0,
             },
             ParsedRange {
                 source_range: 40..50,
                 offset: 27,
+                shift: 0,
             },
         ]);
         let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..45,
             offset: -2,
+            shift: 0,
         }]);
 
         let a_and_b = &a & &b;
@@ -771,14 +1001,17 @@ mod tests {
                 ParsedRange {
                     source_range: 5..10,
                     offset: 1,
+                    shift: 0,
                 },
                 ParsedRange {
                     source_range: 20..30,
                     offset: 7,
+                    shift: 0,
                 },
                 ParsedRange {
                     source_range: 40..45,
                     offset: 25,
+                    shift: 0,
                 },
             ]
         );
@@ -789,10 +1022,12 @@ mod tests {
         let a = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 0..10,
             offset: 3,
+            shift: 0,
         }]);
         let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..15,
             offset: -2,
+            shift: 0,
         }]);
 
         let ab = &a + &b;
@@ -803,14 +1038,17 @@ mod tests {
                 ParsedRange {
                     source_range: 0..5,
                     offset: 3,
+                    shift: 0,
                 },
                 ParsedRange {
                     source_range: 5..10,
                     offset: 1,
+                    shift: 0,
                 },
                 ParsedRange {
                     source_range: 10..15,
                     offset: -2,
+                    shift: 0,
                 }
             ]
         )
