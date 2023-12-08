@@ -1,4 +1,10 @@
-use std::{fs, ops, time::Instant};
+use std::{
+    fs,
+    ops::{self, Sub},
+    time::Instant,
+};
+
+use auto_ops::impl_op_ex;
 
 use crate::{utils, AdventError, ExclusivePart};
 
@@ -269,9 +275,9 @@ struct UnparsedRange {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct ParsedRange {
-    source_range: ops::Range<u64>,
-    offset: i64,
+pub struct ParsedRange {
+    pub source_range: ops::Range<u64>,
+    pub offset: i64,
 }
 
 impl ParsedRange {
@@ -292,7 +298,52 @@ impl ParsedRange {
             None
         }
     }
+
+    fn subtract(&self, other: &ParsedRange) -> Option<Vec<ParsedRange>> {
+        match self.intersect(other) {
+            // if there's some intersection, figure out which part to remove
+            Some(intersection) => {
+                let a = &self.source_range;
+                let int = &intersection.source_range;
+
+                if a.start == int.start && a.end == int.end {
+                    // we are encompassed by the other range, so we are removed when subtracted
+                    None
+                } else if a.start == int.start {
+                    // the left side will be clipped off, since that's where the intersection aligns
+                    Some(vec![ParsedRange {
+                        source_range: int.end..a.end,
+                        offset: self.offset,
+                    }])
+                } else if a.end == int.end {
+                    // the right side will be clipped off, since that's where the intersection aligns
+                    Some(vec![ParsedRange {
+                        source_range: a.start..int.start,
+                        offset: self.offset,
+                    }])
+                } else {
+                    // we completely encompass the intersection, so we must segment ourself
+                    Some(vec![
+                        ParsedRange {
+                            source_range: a.start..int.start,
+                            offset: self.offset,
+                        },
+                        ParsedRange {
+                            source_range: int.end..a.end,
+                            offset: self.offset,
+                        },
+                    ])
+                }
+            }
+            // no intersection means nothing to subtract! :)
+            None => Some(vec![self.clone()]),
+        }
+    }
 }
+
+impl_op_ex!(&|a: &ParsedRange, b: &ParsedRange| -> Option<ParsedRange> { a.intersect(b) });
+
+impl_op_ex!(-|a: &ParsedRange, b: &ParsedRange| -> Option<Vec<ParsedRange>> { a.subtract(b) });
 
 impl From<UnparsedRange> for ParsedRange {
     fn from(unparsed_range: UnparsedRange) -> Self {
@@ -305,16 +356,17 @@ impl From<UnparsedRange> for ParsedRange {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DisjointIntervalList {
-    intervals: Vec<ParsedRange>,
+pub struct SortedDisjointIntervalList {
+    pub intervals: Vec<ParsedRange>,
 }
 
-impl DisjointIntervalList {
-    pub fn new(intervals: Vec<ParsedRange>) -> Self {
+impl SortedDisjointIntervalList {
+    pub fn new(mut intervals: Vec<ParsedRange>) -> Self {
+        intervals.sort_by(|a, b| a.source_range.start.cmp(&b.source_range.start));
         Self { intervals }
     }
 
-    pub fn intersect(&self, other: &Self) -> DisjointIntervalList {
+    pub fn intersect(&self, other: &Self) -> SortedDisjointIntervalList {
         let mut ai: usize = 0;
         let mut bi: usize = 0;
 
@@ -323,7 +375,7 @@ impl DisjointIntervalList {
             let a = &self.intervals[ai];
             let b = &other.intervals[bi];
 
-            if let Some(intersection) = a.intersect(b) {
+            if let Some(intersection) = a & b {
                 intersections.push(intersection);
             }
 
@@ -334,27 +386,68 @@ impl DisjointIntervalList {
             }
         }
 
-        DisjointIntervalList {
-            intervals: intersections,
+        SortedDisjointIntervalList::new(intersections)
+    }
+
+    pub fn subtract(&self, other: &Self) -> SortedDisjointIntervalList {
+        let mut subtractions = Vec::new();
+        for a in &self.intervals {
+            let mut subtraction: Vec<ParsedRange> = vec![a.clone()];
+            for b in &other.intervals {
+                let a_comp = subtraction.last().unwrap();
+                if let Some(s) = a_comp - b {
+                    subtraction = s
+                }
+            }
+            subtractions.extend(subtraction);
         }
+        SortedDisjointIntervalList::new(subtractions)
+    }
+
+    pub fn merge(&self, other: &Self) -> SortedDisjointIntervalList {
+        let intersection = self & other;
+        let sub_self = self - &intersection;
+        let sub_other = other - &intersection;
+
+        SortedDisjointIntervalList::new(
+            sub_self
+                .intervals
+                .iter()
+                .chain(sub_other.intervals.iter())
+                .chain(intersection.intervals.iter())
+                .cloned()
+                .collect(),
+        )
     }
 }
+
+impl_op_ex!(&|a: &SortedDisjointIntervalList,
+              b: &SortedDisjointIntervalList|
+ -> SortedDisjointIntervalList { a.intersect(b) });
+
+impl_op_ex!(-|a: &SortedDisjointIntervalList,
+              b: &SortedDisjointIntervalList|
+ -> SortedDisjointIntervalList { a.subtract(b) });
+
+impl_op_ex!(+|a: &SortedDisjointIntervalList,
+              b: &SortedDisjointIntervalList|
+ -> SortedDisjointIntervalList { a.merge(b) });
 
 mod tests {
     use super::*;
 
     #[test]
     fn basic_intersect_single() {
-        let a = DisjointIntervalList::new(vec![ParsedRange {
+        let a = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 0..10,
             offset: 3,
         }]);
-        let b = DisjointIntervalList::new(vec![ParsedRange {
+        let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..15,
             offset: -2,
         }]);
 
-        let a_and_b = a.intersect(&b);
+        let a_and_b = a & b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -366,8 +459,30 @@ mod tests {
     }
 
     #[test]
+    fn basic_subtraction_single() {
+        let a = SortedDisjointIntervalList::new(vec![ParsedRange {
+            source_range: 0..10,
+            offset: 3,
+        }]);
+        let b = SortedDisjointIntervalList::new(vec![ParsedRange {
+            source_range: 5..15,
+            offset: -2,
+        }]);
+
+        let a_minus_b = a - b;
+
+        assert_eq!(
+            a_minus_b.intervals,
+            vec![ParsedRange {
+                source_range: 0..5,
+                offset: 3,
+            }]
+        );
+    }
+
+    #[test]
     fn basic_intersect_double() {
-        let a = DisjointIntervalList::new(vec![
+        let a = SortedDisjointIntervalList::new(vec![
             ParsedRange {
                 source_range: 0..10,
                 offset: 3,
@@ -377,7 +492,7 @@ mod tests {
                 offset: 9,
             },
         ]);
-        let b = DisjointIntervalList::new(vec![
+        let b = SortedDisjointIntervalList::new(vec![
             ParsedRange {
                 source_range: 5..15,
                 offset: -2,
@@ -388,7 +503,7 @@ mod tests {
             },
         ]);
 
-        let a_and_b = a.intersect(&b);
+        let a_and_b = a & b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -406,8 +521,8 @@ mod tests {
     }
 
     #[test]
-    fn basic_intersect_single_overlapping() {
-        let a = DisjointIntervalList::new(vec![
+    fn basic_subtraction_double() {
+        let a = SortedDisjointIntervalList::new(vec![
             ParsedRange {
                 source_range: 0..10,
                 offset: 3,
@@ -417,12 +532,52 @@ mod tests {
                 offset: 9,
             },
         ]);
-        let b = DisjointIntervalList::new(vec![ParsedRange {
+        let b = SortedDisjointIntervalList::new(vec![
+            ParsedRange {
+                source_range: 5..15,
+                offset: -2,
+            },
+            ParsedRange {
+                source_range: 15..25,
+                offset: 15,
+            },
+        ]);
+
+        let a_minus_b = a - b;
+
+        assert_eq!(
+            a_minus_b.intervals,
+            vec![
+                ParsedRange {
+                    source_range: 0..5,
+                    offset: 3,
+                },
+                ParsedRange {
+                    source_range: 25..30,
+                    offset: 9,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn basic_intersect_single_overlapping() {
+        let a = SortedDisjointIntervalList::new(vec![
+            ParsedRange {
+                source_range: 0..10,
+                offset: 3,
+            },
+            ParsedRange {
+                source_range: 20..30,
+                offset: 9,
+            },
+        ]);
+        let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..25,
             offset: -4,
         }]);
 
-        let a_and_b = a.intersect(&b);
+        let a_and_b = a & b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -441,7 +596,7 @@ mod tests {
 
     #[test]
     fn basic_intersect_double_overlapping() {
-        let a = DisjointIntervalList::new(vec![
+        let a = SortedDisjointIntervalList::new(vec![
             ParsedRange {
                 source_range: 0..10,
                 offset: 3,
@@ -455,12 +610,12 @@ mod tests {
                 offset: 27,
             },
         ]);
-        let b = DisjointIntervalList::new(vec![ParsedRange {
+        let b = SortedDisjointIntervalList::new(vec![ParsedRange {
             source_range: 5..45,
             offset: -2,
         }]);
 
-        let a_and_b = a.intersect(&b);
+        let a_and_b = a & b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -479,5 +634,37 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn basic_merge_single() {
+        let a = SortedDisjointIntervalList::new(vec![ParsedRange {
+            source_range: 0..10,
+            offset: 3,
+        }]);
+        let b = SortedDisjointIntervalList::new(vec![ParsedRange {
+            source_range: 5..15,
+            offset: -2,
+        }]);
+
+        let ab = a + b;
+
+        assert_eq!(
+            ab.intervals,
+            vec![
+                ParsedRange {
+                    source_range: 0..5,
+                    offset: 3,
+                },
+                ParsedRange {
+                    source_range: 5..10,
+                    offset: 1,
+                },
+                ParsedRange {
+                    source_range: 10..15,
+                    offset: -2,
+                }
+            ]
+        )
     }
 }
