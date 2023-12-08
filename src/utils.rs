@@ -20,10 +20,25 @@ pub fn format_duration(d: Duration) -> String {
         s.push_str(&format!("{}m", minutes));
     }
 
-    let seconds = d.as_secs_f64() % 60.0;
-    if seconds > 0.0 {
+    let seconds = d.as_secs() % 60;
+    if seconds > 0 {
         s.push_str(&format!("{:>.1}s", seconds));
     }
+
+    let milliseconds = (d.as_secs_f64() % 1.0) * 1000.0;
+    if milliseconds > 0.0 {
+        s.push_str(&format!("{:>.2}ms", milliseconds));
+    }
+
+    // let microseconds = d.as_micros() % 1000;
+    // if microseconds > 0 {
+    //     s.push_str(&format!("{:>.1}us", microseconds));
+    // }
+
+    // let nanoseconds = d.as_nanos() % 1000;
+    // if nanoseconds > 0 {
+    //     s.push_str(&format!("{:>.1}ns", nanoseconds));
+    // }
 
     s
 }

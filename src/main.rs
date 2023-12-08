@@ -1,6 +1,6 @@
-use std::env;
+use std::{env, time::Instant};
 
-use advent_of_code_2023::{run, AdventError, ExclusivePart, Parts};
+use advent_of_code_2023::{run, utils, AdventError, ExclusivePart, Parts};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Days {
@@ -33,11 +33,16 @@ fn main() -> Result<(), String> {
 }
 
 fn run_and_print_day(day: u32, part: ExclusivePart, hide_unimplemented: bool) {
-    match run(day, part) {
-        Ok(s) => println!("Day {day:>2}, part {part}: {s}"),
+    let now = Instant::now();
+    let run_opt = run(day, part);
+    let elapsed = now.elapsed();
+    let elasped_str = utils::format_duration(elapsed);
+
+    match run_opt {
+        Ok(s) => println!("Day {day:>2}, part {part}: {s} (done in {elasped_str})"),
         Err(err) => match err {
             AdventError::Other(s) => {
-                println!("Day {day:>2}, part {part} (!ERROR!): {s}");
+                println!("Day {day:>2}, part {part} (!ERROR!): {s} (done in {elasped_str})");
             }
             AdventError::Unimplemented => {
                 if !hide_unimplemented {
