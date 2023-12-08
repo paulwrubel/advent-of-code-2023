@@ -39,7 +39,6 @@ fn part_two() -> Result<String, AdventError> {
     let input =
         fs::read_to_string(INPUT_FILE).map_err(|err| AdventError::Other(err.to_string()))?;
 
-    println!("building almanac...");
     let almanac = Almanac::build_from_string(&input);
 
     let seed_to_location = almanac.seed_to_location_intervals();

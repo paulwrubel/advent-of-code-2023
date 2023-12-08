@@ -43,7 +43,7 @@ fn part_one() -> Result<String, AdventError> {
 
     let num_way_to_win = races.iter().map(|race| {
         let range = race.find_record_breaking_range();
-        println!("{} to {}", range.0, range.1);
+        // println!("{} to {}", range.0, range.1);
         (range.1 - range.0) + 1
     });
 
@@ -87,7 +87,7 @@ fn part_two() -> Result<String, AdventError> {
     };
 
     let range = race.find_record_breaking_range();
-    println!("{} to {}", range.0, range.1);
+    // println!("{} to {}", range.0, range.1);
     let winning_options_count = (range.1 - range.0) + 1;
 
     Ok(winning_options_count.to_string())
