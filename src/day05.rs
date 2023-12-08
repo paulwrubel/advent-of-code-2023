@@ -1,14 +1,15 @@
 use std::{
+    fmt::Display,
     fs,
     ops::{self, Sub},
     time::Instant,
 };
 
-use auto_ops::impl_op_ex;
+use auto_ops::{impl_op, impl_op_ex};
 
 use crate::{utils, AdventError, ExclusivePart};
 
-const INPUT_FILE: &str = "./resources/day05_input.txt";
+const INPUT_FILE: &str = "./resources/day05_example.txt";
 
 pub fn run(epart: ExclusivePart) -> Result<String, AdventError> {
     match epart {
@@ -25,13 +26,51 @@ fn part_one() -> Result<String, AdventError> {
 
     let almanac = Almanac::build_from_string(&input);
 
+    // let a = &almanac.seed_to_soil;
+    // let b = &almanac.soil_to_fertilizer;
+    // println!("A:\t\t{}", a);
+    // println!("B:\t\t{}", b);
+    // let intersection = &(a & b);
+    // println!("A & B:\t\t{}", intersection);
+    // println!("A - (A & B)\t{}", a - intersection);
+    // println!("B - (A & B)\t{}", b - intersection);
+    // println!("A + B\t\t{}", a + b);
+
+    let seed_to_soil = &almanac.seed_to_soil;
+    println!("seed_to_soil:\t\t\t{}", seed_to_soil);
+    let seed_to_fertilizer = seed_to_soil + &almanac.soil_to_fertilizer;
+    println!("soil_to_fertilizer:\t\t{}", &almanac.soil_to_fertilizer);
+    println!("seed_to_fertilizer:\t\t{}", seed_to_fertilizer);
+    println!();
+    let fertilizer_to_water = &almanac.fertilizer_to_water;
+    println!("fertilizer_to_water:\t\t{}", fertilizer_to_water);
+    let seed_to_water = &seed_to_fertilizer + &fertilizer_to_water;
+    println!("seed_to_water:\t\t\t{}", seed_to_water);
+
+    // let seed_to_water = &seed_to_fertilizer + &almanac.fertilizer_to_water;
+    let seed_to_light = &seed_to_water + &almanac.water_to_light;
+    let seed_to_temperature = &seed_to_light + &almanac.light_to_temperature;
+    let seed_to_humidity = &seed_to_temperature + &almanac.temperature_to_humidity;
+    let seed_to_location = &seed_to_humidity + &almanac.humidity_to_location;
+
+    println!();
     let mut min_location = u64::MAX;
     for seed_id in almanac.seed_ids(false) {
-        let location_id = almanac.seed_to_location(seed_id);
+        let soil_id = seed_to_soil.convert(seed_id);
+        let fertilizer_id = seed_to_fertilizer.convert(seed_id);
+        let water_id = seed_to_water.convert(seed_id);
+        let light_id = seed_to_light.convert(seed_id);
+        let temperature_id = seed_to_temperature.convert(seed_id);
+        let humidity_id = seed_to_humidity.convert(seed_id);
+        let location_id = seed_to_location.convert(seed_id);
 
-        // println!(
-        //     "seed: {seed_id}, soil: {soil_id}, fertilizer: {fertilizer_id}, water: {water_id}, light: {light_id}, temperature: {temperature_id}, humidity: {humidity_id}, location: {location_id}"
-        // )
+        // println!("seed: {seed_id}, soil: {soil_id}, fertilizer1: {fertilizer_id_1}, fertilizer2: {fertilizer_id_2}");
+
+        // let location_id = almanac.seed_to_location(seed_id);
+
+        println!(
+            "seed: {seed_id}, soil: {soil_id}, fertilizer: {fertilizer_id}, water: {water_id}, light: {light_id}, temperature: {temperature_id}, humidity: {humidity_id}, location: {location_id}"
+        );
 
         min_location = min_location.min(location_id);
     }
@@ -96,13 +135,27 @@ fn part_two() -> Result<String, AdventError> {
 struct Almanac {
     seed_ids: Vec<u64>,
 
-    seed_to_soil: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    soil_to_fertilizer: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    fertilizer_to_water: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    water_to_light: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    light_to_temperature: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    temperature_to_humidity: Box<dyn Fn(u64) -> u64 + Sync + Send>,
-    humidity_to_location: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    seed_to_soil_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    soil_to_fertilizer_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    fertilizer_to_water_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    water_to_light_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    light_to_temperature_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    temperature_to_humidity_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+    humidity_to_location_func: Box<dyn Fn(u64) -> u64 + Sync + Send>,
+
+    seed_to_soil: SortedDisjointIntervalList,
+    soil_to_fertilizer: SortedDisjointIntervalList,
+    fertilizer_to_water: SortedDisjointIntervalList,
+    water_to_light: SortedDisjointIntervalList,
+    light_to_temperature: SortedDisjointIntervalList,
+    temperature_to_humidity: SortedDisjointIntervalList,
+    humidity_to_location: SortedDisjointIntervalList,
+    // seed_to_fertilizer: SortedDisjointIntervalList,
+    // seed_to_water: SortedDisjointIntervalList,
+    // seed_to_light: SortedDisjointIntervalList,
+    // seed_to_temperature: SortedDisjointIntervalList,
+    // seed_to_humidity: SortedDisjointIntervalList,
+    // seed_to_location: SortedDisjointIntervalList,
 }
 
 impl Almanac {
@@ -148,16 +201,52 @@ impl Almanac {
         // add last map
         property_maps.push(range_maps);
 
+        // let seed_to_soil: SortedDisjointIntervalList = property_maps[0].clone().into();
+
+        // let soil_to_fertilizer: SortedDisjointIntervalList = property_maps[1].clone().into();
+        // let seed_to_fertilizer = &seed_to_soil + &soil_to_fertilizer;
+
+        // let fertilizer_to_water: SortedDisjointIntervalList = property_maps[2].clone().into();
+        // let seed_to_water = &seed_to_fertilizer + &fertilizer_to_water;
+
+        // let water_to_light: SortedDisjointIntervalList = property_maps[3].clone().into();
+        // let seed_to_light = &seed_to_water + &water_to_light;
+
+        // let light_to_temperature: SortedDisjointIntervalList = property_maps[4].clone().into();
+        // let seed_to_temperature = &seed_to_light + &light_to_temperature;
+
+        // let temperature_to_humidity: SortedDisjointIntervalList = property_maps[5].clone().into();
+        // let seed_to_humidity = &seed_to_temperature + &temperature_to_humidity;
+
+        // let humidity_to_location: SortedDisjointIntervalList = property_maps[6].clone().into();
+        // let seed_to_location = &seed_to_humidity + &humidity_to_location;
+
+        let seed_to_soil: SortedDisjointIntervalList = property_maps[0].clone().into();
+        let soil_to_fertilizer: SortedDisjointIntervalList = property_maps[1].clone().into();
+        let fertilizer_to_water: SortedDisjointIntervalList = property_maps[2].clone().into();
+        let water_to_light: SortedDisjointIntervalList = property_maps[3].clone().into();
+        let light_to_temperature: SortedDisjointIntervalList = property_maps[4].clone().into();
+        let temperature_to_humidity: SortedDisjointIntervalList = property_maps[5].clone().into();
+        let humidity_to_location: SortedDisjointIntervalList = property_maps[6].clone().into();
+
         Almanac {
             seed_ids,
 
-            seed_to_soil: Self::build_mapper_func(property_maps.remove(0)),
-            soil_to_fertilizer: Self::build_mapper_func(property_maps.remove(0)),
-            fertilizer_to_water: Self::build_mapper_func(property_maps.remove(0)),
-            water_to_light: Self::build_mapper_func(property_maps.remove(0)),
-            light_to_temperature: Self::build_mapper_func(property_maps.remove(0)),
-            temperature_to_humidity: Self::build_mapper_func(property_maps.remove(0)),
-            humidity_to_location: Self::build_mapper_func(property_maps.remove(0)),
+            seed_to_soil_func: Self::build_mapper_func(property_maps.remove(0)),
+            soil_to_fertilizer_func: Self::build_mapper_func(property_maps.remove(0)),
+            fertilizer_to_water_func: Self::build_mapper_func(property_maps.remove(0)),
+            water_to_light_func: Self::build_mapper_func(property_maps.remove(0)),
+            light_to_temperature_func: Self::build_mapper_func(property_maps.remove(0)),
+            temperature_to_humidity_func: Self::build_mapper_func(property_maps.remove(0)),
+            humidity_to_location_func: Self::build_mapper_func(property_maps.remove(0)),
+
+            seed_to_soil,
+            soil_to_fertilizer,
+            fertilizer_to_water,
+            water_to_light,
+            light_to_temperature,
+            temperature_to_humidity,
+            humidity_to_location,
         }
     }
 
@@ -213,31 +302,31 @@ impl Almanac {
     }
 
     fn seed_to_soil(&self, seed_id: u64) -> u64 {
-        (self.seed_to_soil)(seed_id)
+        (self.seed_to_soil_func)(seed_id)
     }
 
     fn soil_to_fertilizer(&self, soil_id: u64) -> u64 {
-        (self.soil_to_fertilizer)(soil_id)
+        (self.soil_to_fertilizer_func)(soil_id)
     }
 
     fn fertilizer_to_water(&self, fertilizer_id: u64) -> u64 {
-        (self.fertilizer_to_water)(fertilizer_id)
+        (self.fertilizer_to_water_func)(fertilizer_id)
     }
 
     fn water_to_light(&self, water_id: u64) -> u64 {
-        (self.water_to_light)(water_id)
+        (self.water_to_light_func)(water_id)
     }
 
     fn light_to_temperature(&self, light_id: u64) -> u64 {
-        (self.light_to_temperature)(light_id)
+        (self.light_to_temperature_func)(light_id)
     }
 
     fn temperature_to_humidity(&self, temperature_id: u64) -> u64 {
-        (self.temperature_to_humidity)(temperature_id)
+        (self.temperature_to_humidity_func)(temperature_id)
     }
 
     fn humidity_to_location(&self, humidity_id: u64) -> u64 {
-        (self.humidity_to_location)(humidity_id)
+        (self.humidity_to_location_func)(humidity_id)
     }
 
     fn build_mapper_func(
@@ -345,6 +434,12 @@ impl_op_ex!(&|a: &ParsedRange, b: &ParsedRange| -> Option<ParsedRange> { a.inter
 
 impl_op_ex!(-|a: &ParsedRange, b: &ParsedRange| -> Option<Vec<ParsedRange>> { a.subtract(b) });
 
+impl Display for ParsedRange {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({:?}, {:+})", self.source_range, self.offset)
+    }
+}
+
 impl From<UnparsedRange> for ParsedRange {
     fn from(unparsed_range: UnparsedRange) -> Self {
         ParsedRange {
@@ -364,6 +459,13 @@ impl SortedDisjointIntervalList {
     pub fn new(mut intervals: Vec<ParsedRange>) -> Self {
         intervals.sort_by(|a, b| a.source_range.start.cmp(&b.source_range.start));
         Self { intervals }
+    }
+
+    pub fn convert(&self, value: u64) -> u64 {
+        match self.intervals.iter().find(|range| range.contains(&value)) {
+            Some(range) => (value as i64 + range.offset) as u64,
+            None => value,
+        }
     }
 
     pub fn intersect(&self, other: &Self) -> SortedDisjointIntervalList {
@@ -394,9 +496,11 @@ impl SortedDisjointIntervalList {
         for a in &self.intervals {
             let mut subtraction: Vec<ParsedRange> = vec![a.clone()];
             for b in &other.intervals {
-                let a_comp = subtraction.last().unwrap();
-                if let Some(s) = a_comp - b {
-                    subtraction = s
+                if let Some(a_comp) = subtraction.last() {
+                    match a_comp - b {
+                        Some(s) => subtraction = s,
+                        None => subtraction = vec![],
+                    }
                 }
             }
             subtractions.extend(subtraction);
@@ -405,11 +509,19 @@ impl SortedDisjointIntervalList {
     }
 
     pub fn merge(&self, other: &Self) -> SortedDisjointIntervalList {
+        self.internal_merge(other, false)
+    }
+
+    pub fn merge_debug(&self, other: &Self) -> SortedDisjointIntervalList {
+        self.internal_merge(other, true)
+    }
+
+    fn internal_merge(&self, other: &Self, debug: bool) -> SortedDisjointIntervalList {
         let intersection = self & other;
         let sub_self = self - &intersection;
         let sub_other = other - &intersection;
 
-        SortedDisjointIntervalList::new(
+        let res = SortedDisjointIntervalList::new(
             sub_self
                 .intervals
                 .iter()
@@ -417,21 +529,57 @@ impl SortedDisjointIntervalList {
                 .chain(intersection.intervals.iter())
                 .cloned()
                 .collect(),
+        );
+
+        if debug {
+            println!("A:\t\t{}", self);
+            println!("B:\t\t{}", other);
+            println!("A & B:\t\t{}", intersection);
+            println!("A - (A & B)\t{}", sub_self);
+            println!("B - (A & B)\t{}", sub_other);
+            println!("A + B\t\t{}", res);
+        }
+
+        res
+    }
+}
+
+impl From<Vec<ParsedRange>> for SortedDisjointIntervalList {
+    fn from(intervals: Vec<ParsedRange>) -> Self {
+        SortedDisjointIntervalList::new(intervals)
+    }
+}
+
+impl From<Vec<UnparsedRange>> for SortedDisjointIntervalList {
+    fn from(intervals: Vec<UnparsedRange>) -> Self {
+        SortedDisjointIntervalList::new(
+            intervals
+                .iter()
+                .map(|unparsed_range| ParsedRange::from(*unparsed_range))
+                .collect(),
         )
     }
 }
 
-impl_op_ex!(&|a: &SortedDisjointIntervalList,
-              b: &SortedDisjointIntervalList|
+impl_op!(&|a: &SortedDisjointIntervalList,
+           b: &SortedDisjointIntervalList|
  -> SortedDisjointIntervalList { a.intersect(b) });
 
-impl_op_ex!(-|a: &SortedDisjointIntervalList,
-              b: &SortedDisjointIntervalList|
+impl_op!(-|a: &SortedDisjointIntervalList,
+           b: &SortedDisjointIntervalList|
  -> SortedDisjointIntervalList { a.subtract(b) });
 
-impl_op_ex!(+|a: &SortedDisjointIntervalList,
+impl_op!(+|a: &SortedDisjointIntervalList,
               b: &SortedDisjointIntervalList|
  -> SortedDisjointIntervalList { a.merge(b) });
+
+impl Display for SortedDisjointIntervalList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let range_strs = self.intervals.iter().map(|range| range.to_string());
+        let str = range_strs.collect::<Vec<String>>().join(", ");
+        write!(f, "[{}]", str)
+    }
+}
 
 mod tests {
     use super::*;
@@ -447,7 +595,7 @@ mod tests {
             offset: -2,
         }]);
 
-        let a_and_b = a & b;
+        let a_and_b = &a & &b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -469,7 +617,7 @@ mod tests {
             offset: -2,
         }]);
 
-        let a_minus_b = a - b;
+        let a_minus_b = &a - &b;
 
         assert_eq!(
             a_minus_b.intervals,
@@ -503,7 +651,7 @@ mod tests {
             },
         ]);
 
-        let a_and_b = a & b;
+        let a_and_b = &a & &b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -543,7 +691,7 @@ mod tests {
             },
         ]);
 
-        let a_minus_b = a - b;
+        let a_minus_b = &a - &b;
 
         assert_eq!(
             a_minus_b.intervals,
@@ -577,7 +725,7 @@ mod tests {
             offset: -4,
         }]);
 
-        let a_and_b = a & b;
+        let a_and_b = &a & &b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -615,7 +763,7 @@ mod tests {
             offset: -2,
         }]);
 
-        let a_and_b = a & b;
+        let a_and_b = &a & &b;
 
         assert_eq!(
             a_and_b.intervals,
@@ -647,7 +795,7 @@ mod tests {
             offset: -2,
         }]);
 
-        let ab = a + b;
+        let ab = &a + &b;
 
         assert_eq!(
             ab.intervals,
