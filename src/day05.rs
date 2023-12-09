@@ -1,8 +1,7 @@
 use std::{
     fmt::Display,
     fs,
-    ops::{self, Sub},
-    time::Instant,
+    ops::{self},
 };
 
 use auto_ops::{impl_op, impl_op_ex};
@@ -194,10 +193,6 @@ pub struct ParsedRange {
 }
 
 impl ParsedRange {
-    fn contains(&self, n: &i64) -> bool {
-        self.source_range.contains(n)
-    }
-
     fn shift_by(&self, shift: i64) -> ParsedRange {
         ParsedRange {
             source_range: self.source_range.start + shift..self.source_range.end + shift,
