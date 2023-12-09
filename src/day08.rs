@@ -97,38 +97,7 @@ impl Map {
         steps
     }
 
-    fn get_steps_to_all_ends_naive(&self) -> u64 {
-        let mut steps = 0;
-        let mut current_nodes: Vec<Node> = self
-            .nodes
-            .keys()
-            .filter(|node| node.id.last() == Some(&'A'))
-            .copied()
-            .collect();
-
-        let mut dir_index = 0;
-        loop {
-            if current_nodes
-                .iter()
-                .all(|node| node.id.last() == Some(&'Z'))
-            {
-                break;
-            }
-            let dir = &self.directions[dir_index % self.directions.len()];
-            for node in current_nodes.iter_mut() {
-                *node = match dir {
-                    Direction::Left => self.nodes[&node].left,
-                    Direction::Right => self.nodes[&node].right,
-                };
-            }
-            dir_index += 1;
-            steps += 1;
-        }
-
-        steps
-    }
-
-    fn get_steps_to_all_ends_lcm(&self) -> u64 {
+    fn get_steps_to_all_ends(&self) -> u64 {
         let mut steps = 0;
         let mut current_nodes: Vec<Node> = self
             .nodes
