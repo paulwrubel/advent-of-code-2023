@@ -32,7 +32,7 @@ fn part_two() -> Result<String, AdventError> {
 
     let map = Map::parse_from_string(&input);
 
-    let steps = map.get_steps_to_all_ends_lcm();
+    let steps = map.get_steps_to_all_ends();
 
     Ok(steps.to_string())
 }
