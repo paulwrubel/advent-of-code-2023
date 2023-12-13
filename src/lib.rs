@@ -53,6 +53,24 @@ pub enum AdventError {
     Other(String),
 }
 
+impl From<String> for AdventError {
+    fn from(value: String) -> Self {
+        Self::Other(value)
+    }
+}
+
+impl From<&str> for AdventError {
+    fn from(value: &str) -> Self {
+        Self::Other(value.to_string())
+    }
+}
+
+impl From<std::io::Error> for AdventError {
+    fn from(value: std::io::Error) -> Self {
+        Self::Other(value.to_string())
+    }
+}
+
 pub fn run(day: u32, part: ExclusivePart) -> Result<String, AdventError> {
     match day {
         1 => day01::run(part),
