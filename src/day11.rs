@@ -88,54 +88,6 @@ impl GalaxyMap {
         self.empty_space_expansion_scalar = scalar;
     }
 
-    fn _expand(&mut self) -> Result<(), String> {
-        self._expand_by_distance(1)
-    }
-
-    fn _expand_by_distance(&mut self, distance: u64) -> Result<(), String> {
-        if distance == 0 {
-            return Ok(());
-        }
-
-        let mut expanded = self.data.clone();
-
-        let mut x = 0;
-        while x < expanded.width() {
-            let built_column = expanded.build_column(x).unwrap();
-            if built_column.iter().all(|s| *s == Sector::EmptySpace) {
-                // this might hurt...
-                for _ in 0..distance {
-                    let new_column = built_column.clone();
-                    expanded.insert_column_at(x, new_column)?;
-                }
-                // this skips the columns we just inserted
-                x += distance as usize;
-            }
-            // this moves on like normal
-            x += 1;
-        }
-
-        let mut y = 0;
-        while y < expanded.height() {
-            let row = expanded.row(y).unwrap().clone();
-            if row.iter().all(|s| *s == Sector::EmptySpace) {
-                // this might hurt...
-                for _ in 0..distance {
-                    let new_row = row.clone();
-                    expanded.insert_row_at(y, new_row)?;
-                }
-                // this skips the row we just inserted
-                y += distance as usize;
-            }
-            // this moves on like normal
-            y += 1;
-        }
-
-        self.data = expanded;
-
-        Ok(())
-    }
-
     fn find_sum_of_all_galaxy_pair_distances(&self) -> i64 {
         self.find_galaxy_pairs()
             .iter()
@@ -155,7 +107,10 @@ impl GalaxyMap {
         let galaxy_coords = self.find_galaxy_coords();
         for ai in 0..galaxy_coords.len() - 1 {
             for bi in ai + 1..galaxy_coords.len() {
-                galaxy_pairs.push(GalaxyPair::new(galaxy_coords[ai], galaxy_coords[bi]))
+                galaxy_pairs.push(GalaxyPair {
+                    a: galaxy_coords[ai],
+                    b: galaxy_coords[bi],
+                })
             }
         }
 
@@ -208,10 +163,6 @@ struct GalaxyPair {
 }
 
 impl GalaxyPair {
-    fn new(a: (i64, i64), b: (i64, i64)) -> Self {
-        Self { a, b }
-    }
-
     fn true_distance(
         &self,
         empty_row_indices: &Vec<usize>,
@@ -244,17 +195,5 @@ impl GalaxyPair {
 
         (max_y - min_y - crossed_expanded_rows as usize) as i64
             + (crossed_expanded_rows * expansion_scalar) as i64
-    }
-
-    fn _manhattan_distance(&self) -> i64 {
-        self._x_distance() + self._y_distance()
-    }
-
-    fn _x_distance(&self) -> i64 {
-        (self.a.0 - self.b.0).abs()
-    }
-
-    fn _y_distance(&self) -> i64 {
-        (self.a.1 - self.b.1).abs()
     }
 }
