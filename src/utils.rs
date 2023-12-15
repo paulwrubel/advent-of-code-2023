@@ -43,7 +43,7 @@ pub fn format_duration(d: Duration) -> String {
     s
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Grid<T> {
     data: Vec<Vec<T>>,
     width: usize,
@@ -129,11 +129,15 @@ where
         }
     }
 
-    pub fn rows_iter(&self) -> impl Iterator<Item = impl Iterator<Item = &T>> {
+    pub fn rows_iter(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = impl DoubleEndedIterator<Item = &T>> {
         self.data.iter().map(|row| row.iter())
     }
 
-    pub fn columns_iter(&self) -> impl Iterator<Item = impl Iterator<Item = &T>> {
+    pub fn columns_iter(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = impl DoubleEndedIterator<Item = &T>> {
         (0..self.width).map(move |x| (0..self.height).map(move |y| &self.data[y][x]))
     }
 
