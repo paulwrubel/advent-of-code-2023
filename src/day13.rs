@@ -32,14 +32,6 @@ fn part_one() -> Result<String, AdventError> {
 
     let mut summary_num = 0;
     for line_of_symmetry in lines_of_symmetry {
-        match line_of_symmetry {
-            LineOfSymmetry::Horizontal(y) => {
-                println!("Horizontal line of symmetry at y = {}", y);
-            }
-            LineOfSymmetry::Vertical(x) => {
-                println!("Vertical line of symmetry at x = {}", x);
-            }
-        }
         summary_num += match line_of_symmetry {
             LineOfSymmetry::Horizontal(y) => 100 * y,
             LineOfSymmetry::Vertical(x) => x,
@@ -70,14 +62,6 @@ fn part_two() -> Result<String, AdventError> {
 
     let mut summary_num = 0;
     for line_of_symmetry in lines_of_symmetry {
-        match line_of_symmetry {
-            LineOfSymmetry::Horizontal(y) => {
-                println!("Horizontal line of symmetry at y = {}", y);
-            }
-            LineOfSymmetry::Vertical(x) => {
-                println!("Vertical line of symmetry at x = {}", x);
-            }
-        }
         summary_num += match line_of_symmetry {
             LineOfSymmetry::Horizontal(y) => 100 * y,
             LineOfSymmetry::Vertical(x) => x,
