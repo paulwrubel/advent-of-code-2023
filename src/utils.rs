@@ -52,7 +52,7 @@ pub struct Grid<T> {
 
 impl<T> Grid<T>
 where
-    T: Default + std::fmt::Debug + Clone + Copy + PartialEq,
+    T: Default + std::fmt::Debug + Clone + PartialEq,
 {
     pub fn new_empty(width: usize, height: usize) -> Self {
         Self {
@@ -60,6 +60,21 @@ where
             width,
             height,
         }
+    }
+
+    pub fn from_data(data: Vec<Vec<T>>) -> Result<Self, String> {
+        let height = data.len();
+        let width = data.get(0).map_or(0, Vec::len);
+        for row in &data {
+            if row.len() != width {
+                return Err("All rows must have the same width".to_string());
+            }
+        }
+        Ok(Self {
+            data,
+            width,
+            height,
+        })
     }
 
     pub fn take_data(self) -> Vec<Vec<T>> {
@@ -78,12 +93,21 @@ where
         x >= 0 && x < self.width as i64 && y >= 0 && y < self.height as i64
     }
 
-    pub fn get(&self, x: i64, y: i64) -> Option<T> {
+    pub fn get(&self, x: i64, y: i64) -> Option<&T> {
         if self.is_within_bounds(x, y) {
             self.data
                 .get(y as usize)
                 .and_then(|row| row.get(x as usize))
-                .copied()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, x: i64, y: i64) -> Option<&mut T> {
+        if self.is_within_bounds(x, y) {
+            self.data
+                .get_mut(y as usize)
+                .and_then(|row| row.get_mut(x as usize))
         } else {
             None
         }
@@ -96,8 +120,8 @@ where
     /// Panics if (x, y) is out of bounds
     ///
     /// I wouldn't recommend using this, but it's here anyways
-    pub fn must_get(&self, x: i64, y: i64) -> T {
-        self.data[y as usize][x as usize]
+    pub fn must_get(&self, x: i64, y: i64) -> &T {
+        &self.data[y as usize][x as usize]
     }
 
     pub fn set(&mut self, x: i64, y: i64, value: T) -> Result<(), String> {
@@ -121,9 +145,9 @@ where
     ///
     /// Due to the way the data is stored, an "artificial" column is created to hold the data
     /// which results in the column effectively being a cloned vector
-    pub fn build_column(&self, x: usize) -> Option<Vec<T>> {
+    pub fn build_column(&self, x: usize) -> Option<Vec<&T>> {
         if x < self.width {
-            Some(self.data.iter().map(|row| row[x]).collect())
+            Some(self.data.iter().map(|row| &row[x]).collect())
         } else {
             None
         }
@@ -154,7 +178,7 @@ where
         Ok(())
     }
 
-    pub fn insert_column_at(&mut self, x: usize, column: Vec<T>) -> Result<(), String> {
+    pub fn insert_column_at(&mut self, x: usize, mut column: Vec<T>) -> Result<(), String> {
         if column.len() != self.height {
             return Err(format!(
                 "Column must have {} elements, but has {}",
@@ -162,8 +186,9 @@ where
                 column.len()
             ));
         }
-        for y in 0..self.height {
-            self.data[y].insert(x, column[y]);
+
+        for (y, element) in column.drain(..).enumerate() {
+            self.data[y].insert(x, element);
         }
         self.width += 1;
         Ok(())
