@@ -182,7 +182,7 @@ impl ResolvedContraption {
             .collect_vec()
     }
 
-    fn energized_tiles_string(&self) -> String {
+    fn _energized_tiles_string(&self) -> String {
         let mut s = String::new();
         for (y, row) in self.tiles.rows_iter().enumerate() {
             for tile in row {
