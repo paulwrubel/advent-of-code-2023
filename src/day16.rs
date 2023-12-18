@@ -3,7 +3,7 @@ use std::{collections::HashSet, fs};
 use itertools::Itertools;
 
 use crate::{
-    utils::{Grid, GridEntry},
+    utils::{Grid, GridEntry, GridPoint},
     AdventError, ExclusivePart,
 };
 
@@ -40,7 +40,7 @@ fn part_two() -> Result<String, AdventError> {
 
     let starting_beam = contraption.find_ideal_starting_beam()?;
 
-    println!("starting beam: {:?}", starting_beam);
+    // println!("starting beam: {:?}", starting_beam);
 
     let resolved_contraption = contraption.resolve_beams_starting_from(starting_beam)?;
 
@@ -62,7 +62,13 @@ impl Contraption {
         let mut tiles = Grid::new_empty(width, height);
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
-                tiles.set(x as i64, y as i64, Tile::parse(c)?)?;
+                tiles.set(
+                    GridPoint {
+                        x: x as i64,
+                        y: y as i64,
+                    },
+                    Tile::parse(c)?,
+                )?;
             }
         }
 
@@ -134,7 +140,7 @@ impl Contraption {
 
         resolved_contraption
             .tiles
-            .get_mut(starting_beam.coords.0, starting_beam.coords.1)
+            .get_mut(starting_beam.coords.into())
             .unwrap()
             .beams
             .insert(starting_beam.direction);
@@ -148,7 +154,7 @@ impl Contraption {
             for beam in produced_beams {
                 let affected_tile = resolved_contraption
                     .tiles
-                    .get_mut(beam.coords.0, beam.coords.1)
+                    .get_mut(beam.coords.into())
                     .unwrap();
 
                 if !affected_tile.beams.contains(&beam.direction) {
@@ -174,8 +180,7 @@ impl ResolvedContraption {
             .entries()
             .filter(
                 |GridEntry {
-                     x: _x,
-                     y: _y,
+                     point: _point,
                      value,
                  }| !value.beams.is_empty(),
             )
@@ -208,7 +213,7 @@ struct BeamData {
 
 impl BeamData {
     fn resolve(&self, tiles: &Grid<TileData>) -> HashSet<BeamData> {
-        let this_tile_data = tiles.get(self.coords.0, self.coords.1).unwrap();
+        let this_tile_data = tiles.get(self.coords.into()).unwrap();
 
         let new_directions = this_tile_data.tile.new_beam_directions_from(self.direction);
 
@@ -222,7 +227,7 @@ impl BeamData {
 
         let mut new_beams = HashSet::new();
         for beam in new_beams_unfiltered_vec {
-            if tiles.is_within_bounds(beam.coords.0, beam.coords.1) {
+            if tiles.is_within_bounds(beam.coords.into()) {
                 new_beams.insert(beam);
             }
         }

@@ -3,7 +3,10 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use crate::{utils::Grid, AdventError, ExclusivePart};
+use crate::{
+    utils::{Grid, GridPoint},
+    AdventError, ExclusivePart,
+};
 
 const INPUT_FILE: &str = "./resources/day14_input.txt";
 
@@ -52,7 +55,13 @@ impl Platform {
         let mut spaces = Grid::new_empty(width, height);
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
-                spaces.set(x as i64, y as i64, Space::parse(c)?)?;
+                spaces.set(
+                    GridPoint {
+                        x: x as i64,
+                        y: y as i64,
+                    },
+                    Space::parse(c)?,
+                )?;
             }
         }
 
@@ -79,7 +88,13 @@ impl Platform {
                     }?;
 
                     for (y, space) in tilted_column.iter().enumerate() {
-                        new_spaces.set(x as i64, y as i64, *space)?;
+                        new_spaces.set(
+                            GridPoint {
+                                x: x as i64,
+                                y: y as i64,
+                            },
+                            *space,
+                        )?;
                     }
                 }
             }
@@ -93,7 +108,13 @@ impl Platform {
                     }?;
 
                     for (x, space) in tilted_row.iter().enumerate() {
-                        new_spaces.set(x as i64, y as i64, *space)?;
+                        new_spaces.set(
+                            GridPoint {
+                                x: x as i64,
+                                y: y as i64,
+                            },
+                            *space,
+                        )?;
                     }
                 }
             }

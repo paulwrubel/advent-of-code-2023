@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::{
-    utils::{Grid, GridEntry},
+    utils::{Grid, GridEntry, GridPoint},
     AdventError, ExclusivePart,
 };
 
@@ -56,7 +56,13 @@ impl GalaxyMap {
         let mut data = Grid::new_empty(width, height);
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
-                data.set(x as i64, y as i64, Sector::try_parse(c)?)?;
+                data.set(
+                    GridPoint {
+                        x: x as i64,
+                        y: y as i64,
+                    },
+                    Sector::try_parse(c)?,
+                )?;
             }
         }
 
@@ -120,13 +126,18 @@ impl GalaxyMap {
     fn find_galaxy_coords(&self) -> Vec<(i64, i64)> {
         self.data
             .entries()
-            .filter_map(|GridEntry { x, y, value }| {
-                if *value == Sector::Galaxy {
-                    Some((x as i64, y as i64))
-                } else {
-                    None
-                }
-            })
+            .filter_map(
+                |GridEntry {
+                     point: GridPoint { x, y },
+                     value,
+                 }| {
+                    if *value == Sector::Galaxy {
+                        Some((x as i64, y as i64))
+                    } else {
+                        None
+                    }
+                },
+            )
             .collect()
     }
 }

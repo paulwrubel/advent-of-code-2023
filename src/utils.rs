@@ -89,25 +89,26 @@ where
         self.height
     }
 
-    pub fn is_within_bounds(&self, x: i64, y: i64) -> bool {
+    pub fn is_within_bounds(&self, point: GridPoint) -> bool {
+        let GridPoint { x, y } = point;
         x >= 0 && x < self.width as i64 && y >= 0 && y < self.height as i64
     }
 
-    pub fn get(&self, x: i64, y: i64) -> Option<&T> {
-        if self.is_within_bounds(x, y) {
+    pub fn get(&self, point: GridPoint) -> Option<&T> {
+        if self.is_within_bounds(point) {
             self.data
-                .get(y as usize)
-                .and_then(|row| row.get(x as usize))
+                .get(point.y as usize)
+                .and_then(|row| row.get(point.x as usize))
         } else {
             None
         }
     }
 
-    pub fn get_mut(&mut self, x: i64, y: i64) -> Option<&mut T> {
-        if self.is_within_bounds(x, y) {
+    pub fn get_mut(&mut self, point: GridPoint) -> Option<&mut T> {
+        if self.is_within_bounds(point) {
             self.data
-                .get_mut(y as usize)
-                .and_then(|row| row.get_mut(x as usize))
+                .get_mut(point.y as usize)
+                .and_then(|row| row.get_mut(point.x as usize))
         } else {
             None
         }
@@ -120,16 +121,16 @@ where
     /// Panics if (x, y) is out of bounds
     ///
     /// I wouldn't recommend using this, but it's here anyways
-    pub fn must_get(&self, x: i64, y: i64) -> &T {
-        &self.data[y as usize][x as usize]
+    pub fn must_get(&self, point: GridPoint) -> &T {
+        &self.data[point.y as usize][point.x as usize]
     }
 
-    pub fn set(&mut self, x: i64, y: i64, value: T) -> Result<(), String> {
-        if self.is_within_bounds(x, y) {
-            self.data[y as usize][x as usize] = value;
+    pub fn set(&mut self, point: GridPoint, value: T) -> Result<(), String> {
+        if self.is_within_bounds(point) {
+            self.data[point.y as usize][point.x as usize] = value;
             Ok(())
         } else {
-            Err(format!("({}, {}) is out of bounds", x, y))
+            Err(format!("{} is out of bounds", point))
         }
     }
 
@@ -196,9 +197,13 @@ where
 
     pub fn entries(&self) -> impl Iterator<Item = GridEntry<&T>> {
         self.data.iter().enumerate().flat_map(|(y, row)| {
-            row.iter()
-                .enumerate()
-                .map(move |(x, value)| GridEntry { x, y, value })
+            row.iter().enumerate().map(move |(x, value)| GridEntry {
+                point: GridPoint {
+                    x: x as i64,
+                    y: y as i64,
+                },
+                value,
+            })
         })
     }
 }
@@ -240,8 +245,198 @@ impl<T> TryFrom<Vec<Vec<T>>> for Grid<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GridEntry<T> {
-    pub x: usize,
-    pub y: usize,
+    pub point: GridPoint,
     pub value: T,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GridPoint {
+    pub x: i64,
+    pub y: i64,
+}
+
+impl GridPoint {
+    pub fn direction_to_orthogonal(&self, other: &GridPoint) -> Result<CardinalDirection, String> {
+        let x_diff = other.x - self.x;
+        let y_diff = other.y - self.y;
+        if x_diff != 0 && y_diff != 0 {
+            return Err(format!("Points {} and {} are not orthogonal", self, other));
+        } else if x_diff > 0 {
+            Ok(CardinalDirection::East)
+        } else if x_diff < 0 {
+            Ok(CardinalDirection::West)
+        } else if y_diff > 0 {
+            Ok(CardinalDirection::South)
+        } else {
+            Ok(CardinalDirection::North)
+        }
+    }
+
+    pub fn orthogonal_neighbors(&self) -> [GridPoint; 4] {
+        [
+            (self.x - 1, self.y).into(),
+            (self.x + 1, self.y).into(),
+            (self.x, self.y - 1).into(),
+            (self.x, self.y + 1).into(),
+        ]
+    }
+
+    pub fn neighbor_in_direction(&self, direction: CardinalDirection) -> GridPoint {
+        match direction {
+            CardinalDirection::North => (self.x, self.y - 1).into(),
+            CardinalDirection::South => (self.x, self.y + 1).into(),
+            CardinalDirection::East => (self.x + 1, self.y).into(),
+            CardinalDirection::West => (self.x - 1, self.y).into(),
+        }
+    }
+
+    pub fn neighbor_in_direction_distance(
+        &self,
+        direction: CardinalDirection,
+        distance: i64,
+    ) -> GridPoint {
+        match direction {
+            CardinalDirection::North => (self.x, self.y - distance).into(),
+            CardinalDirection::South => (self.x, self.y + distance).into(),
+            CardinalDirection::East => (self.x + distance, self.y).into(),
+            CardinalDirection::West => (self.x - distance, self.y).into(),
+        }
+    }
+
+    pub fn points_between_orthogonal_exclusive(&self, other: &GridPoint) -> Vec<GridPoint> {
+        let mut points = Vec::new();
+        let x_diff = other.x - self.x;
+        let y_diff = other.y - self.y;
+        if x_diff != 0 && y_diff != 0 {
+            // not orthogonal!
+            return points;
+        } else if x_diff != 0 {
+            let min = self.x.min(other.x);
+            let max = self.x.max(other.x);
+            for x in min + 1..max {
+                points.push((x, self.y).into());
+            }
+        } else {
+            let min = self.y.min(other.y);
+            let max = self.y.max(other.y);
+            for y in min + 1..max {
+                points.push((self.x, y).into());
+            }
+        }
+        points
+    }
+}
+
+impl From<(i32, i32)> for GridPoint {
+    fn from((x, y): (i32, i32)) -> Self {
+        Self {
+            x: x as i64,
+            y: y as i64,
+        }
+    }
+}
+
+impl From<(i64, i64)> for GridPoint {
+    fn from((x, y): (i64, i64)) -> Self {
+        Self { x, y }
+    }
+}
+
+impl From<(u64, u64)> for GridPoint {
+    fn from((x, y): (u64, u64)) -> Self {
+        Self {
+            x: x as i64,
+            y: y as i64,
+        }
+    }
+}
+
+impl From<(usize, usize)> for GridPoint {
+    fn from((x, y): (usize, usize)) -> Self {
+        Self {
+            x: x as i64,
+            y: y as i64,
+        }
+    }
+}
+
+impl std::fmt::Display for GridPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CardinalDirection {
+    North,
+    East,
+    South,
+    West,
+}
+
+impl CardinalDirection {
+    pub fn all() -> [Self; 4] {
+        [
+            CardinalDirection::North,
+            CardinalDirection::East,
+            CardinalDirection::South,
+            CardinalDirection::West,
+        ]
+    }
+    pub fn opposite(&self) -> Self {
+        match self {
+            CardinalDirection::North => CardinalDirection::South,
+            CardinalDirection::South => CardinalDirection::North,
+            CardinalDirection::East => CardinalDirection::West,
+            CardinalDirection::West => CardinalDirection::East,
+        }
+    }
+
+    pub fn turn(&self, relative_direction: RelativeDirection) -> Self {
+        match relative_direction {
+            RelativeDirection::Forward => *self,
+            RelativeDirection::Backward => self.opposite(),
+            RelativeDirection::Left => self.turn_left(),
+            RelativeDirection::Right => self.turn_right(),
+        }
+    }
+
+    pub fn turn_left(&self) -> Self {
+        match self {
+            CardinalDirection::North => CardinalDirection::West,
+            CardinalDirection::South => CardinalDirection::East,
+            CardinalDirection::East => CardinalDirection::North,
+            CardinalDirection::West => CardinalDirection::South,
+        }
+    }
+
+    pub fn turn_right(&self) -> Self {
+        match self {
+            CardinalDirection::North => CardinalDirection::East,
+            CardinalDirection::South => CardinalDirection::West,
+            CardinalDirection::East => CardinalDirection::South,
+            CardinalDirection::West => CardinalDirection::North,
+        }
+    }
+}
+
+impl From<CardinalDirection> for char {
+    fn from(value: CardinalDirection) -> Self {
+        match value {
+            CardinalDirection::North => '^',
+            CardinalDirection::East => '>',
+            CardinalDirection::South => 'v',
+            CardinalDirection::West => '<',
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RelativeDirection {
+    Forward,
+    Backward,
+    Left,
+    Right,
 }

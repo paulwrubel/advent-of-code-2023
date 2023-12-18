@@ -1,6 +1,9 @@
 use std::fs;
 
-use crate::{utils::Grid, AdventError, ExclusivePart};
+use crate::{
+    utils::{Grid, GridPoint},
+    AdventError, ExclusivePart,
+};
 
 const INPUT_FILE: &str = "./resources/day13_input.txt";
 
@@ -87,7 +90,13 @@ impl Pattern {
         let mut terrain = Grid::new_empty(width, height);
         for (y, line) in pattern_str.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
-                terrain.set(x as i64, y as i64, Terrain::parse(c)?)?;
+                terrain.set(
+                    GridPoint {
+                        x: x as i64,
+                        y: y as i64,
+                    },
+                    Terrain::parse(c)?,
+                )?;
             }
         }
 
@@ -132,12 +141,21 @@ impl Pattern {
             for y in 0..self.terrain.height() {
                 let terrain = self
                     .terrain
-                    .get(x as i64, y as i64)
+                    .get(GridPoint {
+                        x: x as i64,
+                        y: y as i64,
+                    })
                     .expect(format!("couldn't get terrain at {}, {}", x, y).as_str());
 
                 let mut potential_smudge_grid = self.terrain.clone();
                 potential_smudge_grid
-                    .set(x as i64, y as i64, terrain.opposite())
+                    .set(
+                        GridPoint {
+                            x: x as i64,
+                            y: y as i64,
+                        },
+                        terrain.opposite(),
+                    )
                     .expect(format!("couldn't set terrain at {}, {}", x, y).as_str());
 
                 let new_pattern = Pattern::from_grid(potential_smudge_grid);
