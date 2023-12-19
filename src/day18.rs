@@ -37,7 +37,6 @@ fn part_two() -> Result<String, AdventError> {
     // read input file
     let input = fs::read_to_string(INPUT_FILE)?;
 
-    println!("parsing plan...");
     let dig_plan = DigPlan::parse(&input, true)?;
 
     let num_tiles = dig_plan.shoelace_area()?;
