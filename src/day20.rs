@@ -174,7 +174,7 @@ impl ModuleConfiguration {
         Ok(pulse_record)
     }
 
-    fn output_frequencies_for_all(
+    fn _output_frequencies_for_all(
         &mut self,
         state: PulseState,
         limit: u64,
@@ -246,7 +246,7 @@ impl ModuleConfiguration {
         Ok(module.inputs())
     }
 
-    fn outputs_for(&self, name: &str) -> Result<&Vec<String>, String> {
+    fn _outputs_for(&self, name: &str) -> Result<&Vec<String>, String> {
         let module = self
             .modules
             .get(name)
