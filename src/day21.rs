@@ -26,12 +26,8 @@ fn part_one() -> Result<String, AdventError> {
 
     let mut map = Map::parse(&input)?;
 
-    // let possibilities = map.num_possible_locations_pathfinding(steps)?;
-
     map.step_bulk(steps)?;
     let possibilities = map.num_possible_locations();
-
-    // println!("after {} steps:\n{}\n", steps, map);
 
     Ok(possibilities.to_string())
 }
@@ -153,39 +149,21 @@ impl Map {
             // tile horizontally
             self.tiles
                 .append_in_direction(&CardinalDirection::East, horizontal.tiles.clone())?;
-            // self.possible_locations.append_in_direction(
-            //     &CardinalDirection::East,
-            //     horizontal.possible_locations.clone(),
-            // )?;
 
             self.tiles
                 .append_in_direction(&CardinalDirection::West, horizontal.tiles.clone())?;
-            // self.possible_locations.append_in_direction(
-            //     &CardinalDirection::West,
-            //     horizontal.possible_locations.clone(),
-            // )?;
         }
 
         let mut vertical = self.clone();
         vertical.tiles.set(&start_location, Tile::GardenPlot)?;
-        // vertical.possible_locations =
-        //     Grid::new_empty(vertical.tiles.width(), vertical.tiles.height());
 
         for _ in 0..times {
             // tile vertically
             self.tiles
                 .append_in_direction(&CardinalDirection::North, vertical.tiles.clone())?;
-            // self.possible_locations.append_in_direction(
-            //     &CardinalDirection::North,
-            //     vertical.possible_locations.clone(),
-            // )?;
 
             self.tiles
                 .append_in_direction(&CardinalDirection::South, vertical.tiles.clone())?;
-            // self.possible_locations.append_in_direction(
-            //     &CardinalDirection::South,
-            //     vertical.possible_locations.clone(),
-            // )?;
         }
         Ok(())
     }
