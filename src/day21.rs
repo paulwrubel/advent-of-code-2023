@@ -1,10 +1,11 @@
 use core::fmt;
-use std::{collections::HashSet, fs, time};
-
-use itertools::Itertools;
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+};
 
 use crate::{
-    utils::{CardinalDirection, Grid, Point2D, QuadraticEquation},
+    utils::{CardinalDirection, Grid, GridPoint, Point2D, QuadraticEquation},
     AdventError, ExclusivePart,
 };
 
@@ -27,7 +28,7 @@ fn part_one() -> Result<String, AdventError> {
 
     // let possibilities = map.num_possible_locations_pathfinding(steps)?;
 
-    map.step(steps)?;
+    map.step_bulk(steps)?;
     let possibilities = map.num_possible_locations();
 
     // println!("after {} steps:\n{}\n", steps, map);
@@ -37,11 +38,10 @@ fn part_one() -> Result<String, AdventError> {
 
 // Take 1: 639051584885908.5
 // Take 2: 639051580070841 (CORRECT)
-// Take 3:  (OPTIMIZED)
+// Take 3: 639051580070841 (OPTIMIZED) [also, really more like take 20]
 
 fn part_two() -> Result<String, AdventError> {
     part_two_stepping()
-    // part_two_pathfinding()
 }
 
 fn part_two_stepping() -> Result<String, AdventError> {
@@ -52,29 +52,21 @@ fn part_two_stepping() -> Result<String, AdventError> {
     let steps_per_data_point = 2 * map.tiles.width() as u64;
     let pre_steps = map.tiles.width() as u64 / 2;
 
-    // println!("{}", map);
-
     map.tile(4)?;
-
-    // println!("{}", map);
 
     let mut total_steps = 0;
     let mut data_points = [Point2D::default(); 3];
 
-    // pre-step
-    let start = time::Instant::now();
-    map.step(pre_steps)?;
-    println!("pre-step took {:?}", start.elapsed());
+    map.step_bulk(pre_steps)?;
     total_steps += pre_steps;
 
     for i in 0..3 {
         if i > 0 {
-            map.step(steps_per_data_point)?;
+            map.step_bulk(steps_per_data_point)?;
             total_steps += steps_per_data_point;
         }
         let data_point_y = map.num_possible_locations() as f64;
         let data_point = Point2D::new(total_steps as f64, data_point_y);
-        println!("{}: {}", i, data_point);
         data_points[i as usize] = data_point;
     }
 
@@ -85,6 +77,7 @@ fn part_two_stepping() -> Result<String, AdventError> {
     Ok(solution.to_string())
 }
 
+#[allow(dead_code)]
 fn part_two_pathfinding() -> Result<String, AdventError> {
     // read input file
     let input = fs::read_to_string(INPUT_FILE)?;
@@ -116,7 +109,7 @@ fn part_two_pathfinding() -> Result<String, AdventError> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Map {
     tiles: Grid<Tile>,
-    possible_locations: Grid<bool>,
+    possible_locations: HashSet<GridPoint>,
     steps_taken: u64,
 }
 
@@ -125,7 +118,7 @@ impl Map {
         let height = input.lines().count();
         let width = input.lines().next().unwrap().len();
 
-        let mut possible_locations = Grid::new_empty(width, height);
+        let mut possible_locations = HashSet::new();
         let mut tiles = Grid::new_empty(width, height);
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
@@ -133,7 +126,7 @@ impl Map {
                 tiles.set(&(x as i64, y as i64).into(), tile)?;
 
                 if tile == Tile::Start {
-                    possible_locations.set(&(x as i64, y as i64).into(), true)?;
+                    possible_locations.insert((x as i64, y as i64).into());
                 }
             }
         }
@@ -154,50 +147,50 @@ impl Map {
 
         let mut horizontal = self.clone();
         horizontal.tiles.set(&start_location, Tile::GardenPlot)?;
-        horizontal.possible_locations =
-            Grid::new_empty(horizontal.tiles.width(), horizontal.tiles.height());
+        horizontal.possible_locations.clear();
 
         for _ in 0..times {
             // tile horizontally
             self.tiles
                 .append_in_direction(&CardinalDirection::East, horizontal.tiles.clone())?;
-            self.possible_locations.append_in_direction(
-                &CardinalDirection::East,
-                horizontal.possible_locations.clone(),
-            )?;
+            // self.possible_locations.append_in_direction(
+            //     &CardinalDirection::East,
+            //     horizontal.possible_locations.clone(),
+            // )?;
 
             self.tiles
                 .append_in_direction(&CardinalDirection::West, horizontal.tiles.clone())?;
-            self.possible_locations.append_in_direction(
-                &CardinalDirection::West,
-                horizontal.possible_locations.clone(),
-            )?;
+            // self.possible_locations.append_in_direction(
+            //     &CardinalDirection::West,
+            //     horizontal.possible_locations.clone(),
+            // )?;
         }
 
         let mut vertical = self.clone();
         vertical.tiles.set(&start_location, Tile::GardenPlot)?;
-        vertical.possible_locations =
-            Grid::new_empty(vertical.tiles.width(), vertical.tiles.height());
+        // vertical.possible_locations =
+        //     Grid::new_empty(vertical.tiles.width(), vertical.tiles.height());
 
         for _ in 0..times {
             // tile vertically
             self.tiles
                 .append_in_direction(&CardinalDirection::North, vertical.tiles.clone())?;
-            self.possible_locations.append_in_direction(
-                &CardinalDirection::North,
-                vertical.possible_locations.clone(),
-            )?;
+            // self.possible_locations.append_in_direction(
+            //     &CardinalDirection::North,
+            //     vertical.possible_locations.clone(),
+            // )?;
 
             self.tiles
                 .append_in_direction(&CardinalDirection::South, vertical.tiles.clone())?;
-            self.possible_locations.append_in_direction(
-                &CardinalDirection::South,
-                vertical.possible_locations.clone(),
-            )?;
+            // self.possible_locations.append_in_direction(
+            //     &CardinalDirection::South,
+            //     vertical.possible_locations.clone(),
+            // )?;
         }
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn num_possible_locations_pathfinding(&self, steps: u64) -> Result<u64, String> {
         let start = self
             .tiles
@@ -276,66 +269,41 @@ impl Map {
     }
 
     fn num_possible_locations(&self) -> usize {
-        self.possible_locations
-            .entries_matching(|is_possible| *is_possible)
-            .count()
+        self.possible_locations.len()
     }
 
-    fn step(&mut self, times: u64) -> Result<(), String> {
-        for _ in 0..times {
-            self.step_once()?;
+    fn step_bulk(&mut self, times: u64) -> Result<(), String> {
+        let mut steppable = HashMap::new();
+        for location in self.possible_locations.iter() {
+            steppable.insert(*location, 0);
         }
-        Ok(())
-    }
 
-    fn step_once(&mut self) -> Result<(), String> {
-        // get current locations
-        let start = time::Instant::now();
-        let current_locations = self
-            .possible_locations
-            .entries_matching(|is_possible| *is_possible)
-            .map(|entry| entry.point)
-            .collect_vec();
-        let elapsed = start.elapsed();
-        // println!("getting current locations took {:?}", elapsed);
-
-        // get all possible next locations, unfiltered
-        //
-        // this will include locations over rocks and off the map
-        let start = time::Instant::now();
-        let mut next_locations = HashSet::new();
-        for location in current_locations.iter() {
-            for neighbor in location.orthogonal_neighbors() {
-                if self.tiles.is_within_bounds(&neighbor)
-                    && *self.tiles.must_get(&neighbor) != Tile::Rocks
-                {
-                    next_locations.insert(neighbor);
+        let mut frontier = self.possible_locations.clone();
+        let mut next_frontier = HashSet::new();
+        for step_count in 0..times {
+            for location in frontier.drain() {
+                for neighbor in location.orthogonal_neighbors() {
+                    if self.tiles.is_within_bounds(&neighbor)
+                        && *self.tiles.must_get(&neighbor) != Tile::Rocks
+                        && !steppable.contains_key(&neighbor)
+                    {
+                        next_frontier.insert(neighbor);
+                    }
                 }
+                steppable.insert(location, step_count);
             }
-            self.possible_locations.set(location, false)?;
+            frontier.extend(next_frontier.drain());
         }
-        let elapsed = start.elapsed();
-        // println!("getting next locations took {:?}", elapsed);
-
-        // // filter out locations that are not possible
-        // let start = time::Instant::now();
-        // let next_locations = next_locations.into_iter().filter(|location| {
-        //     // must be on the map and not be rocks
-        // });
-        // let elapsed = start.elapsed();
-        // println!("filtering next locations took {:?}", elapsed);
-
-        // reset current locations
-        // self.possible_locations
-        //     .set_all_matching(|is_possible| *is_possible, false)?;
-
-        // set next locations
-        for location in next_locations {
-            self.possible_locations.set(&location, true)?;
+        for location in frontier.drain() {
+            steppable.insert(location, times);
         }
 
-        // update steps
-        self.steps_taken += 1;
+        self.possible_locations.clear();
+        for (location, step_count) in steppable {
+            if step_count % 2 == times % 2 {
+                self.possible_locations.insert(location);
+            }
+        }
 
         Ok(())
     }
@@ -346,11 +314,8 @@ impl Map {
             Tile::GardenPlot => '.',
             Tile::Rocks => '#',
         })?;
-        for point in self
-            .possible_locations
-            .entries_matching(|is_possible| *is_possible)
-        {
-            display_grid.set(&point.point, 'O')?;
+        for point in self.possible_locations.iter() {
+            display_grid.set(&point, 'O')?;
         }
 
         Ok(display_grid.to_string())
