@@ -57,7 +57,7 @@ impl GalaxyMap {
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 data.set(
-                    GridPoint {
+                    &GridPoint {
                         x: x as i64,
                         y: y as i64,
                     },

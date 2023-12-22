@@ -91,7 +91,7 @@ impl Pattern {
         for (y, line) in pattern_str.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 terrain.set(
-                    GridPoint {
+                    &GridPoint {
                         x: x as i64,
                         y: y as i64,
                     },
@@ -141,7 +141,7 @@ impl Pattern {
             for y in 0..self.terrain.height() {
                 let terrain = self
                     .terrain
-                    .get(GridPoint {
+                    .get(&GridPoint {
                         x: x as i64,
                         y: y as i64,
                     })
@@ -150,7 +150,7 @@ impl Pattern {
                 let mut potential_smudge_grid = self.terrain.clone();
                 potential_smudge_grid
                     .set(
-                        GridPoint {
+                        &GridPoint {
                             x: x as i64,
                             y: y as i64,
                         },

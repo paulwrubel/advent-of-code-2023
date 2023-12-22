@@ -58,7 +58,7 @@ impl Lagoon {
 
         // start in the top left, in a dug out cube
         let mut current_pos: GridPoint = (0, 0).into();
-        map.set(current_pos, TerrainTile::Trench)?;
+        map.set(&current_pos, TerrainTile::Trench)?;
         trench_points.push(current_pos);
 
         // dig out the cubes according to the plan
@@ -82,7 +82,7 @@ impl Lagoon {
 
             for _ in 0..step.distance {
                 current_pos = current_pos.neighbor_in_direction(step.direction);
-                map.set_expand(current_pos, TerrainTile::Trench)?;
+                map.set_expand(&current_pos, TerrainTile::Trench)?;
                 trench_points.push(current_pos);
             }
         }
@@ -114,9 +114,9 @@ impl Lagoon {
             let is_floodable = |t: &TerrainTile| *t == TerrainTile::Surface;
 
             self.map
-                .flood(current_offset, &|| TerrainTile::Interior, &is_floodable)?;
+                .flood(&current_offset, &|| TerrainTile::Interior, &is_floodable)?;
             self.map
-                .flood(next_offset, &|| TerrainTile::Interior, &is_floodable)?;
+                .flood(&next_offset, &|| TerrainTile::Interior, &is_floodable)?;
         }
         Ok(())
     }

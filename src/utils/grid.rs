@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use itertools::Itertools;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Grid<T> {
     top_left: GridPoint,
@@ -47,6 +51,14 @@ where
         self.height
     }
 
+    pub fn top_left(&self) -> &GridPoint {
+        &self.top_left
+    }
+
+    pub fn set_top_left(&mut self, point: GridPoint) {
+        self.top_left = point;
+    }
+
     pub fn dimensions(&self) -> (usize, usize) {
         (self.width, self.height)
     }
@@ -84,7 +96,7 @@ where
         self.top_left.y -= amount as i64;
     }
 
-    pub fn is_within_bounds(&self, point: GridPoint) -> bool {
+    pub fn is_within_bounds(&self, point: &GridPoint) -> bool {
         self.is_within_bounds_x(point.x) && self.is_within_bounds_y(point.y)
     }
 
@@ -96,7 +108,7 @@ where
         y >= self.top_left.y && y < self.top_left.y + self.height as i64
     }
 
-    pub fn get(&self, point: GridPoint) -> Option<&T> {
+    pub fn get(&self, point: &GridPoint) -> Option<&T> {
         if self.is_within_bounds(point) {
             let ipoint = point.to_index_point(&self.top_left);
             self.data.get(ipoint.y).and_then(|row| row.get(ipoint.x))
@@ -105,7 +117,7 @@ where
         }
     }
 
-    pub fn get_mut(&mut self, point: GridPoint) -> Option<&mut T> {
+    pub fn get_mut(&mut self, point: &GridPoint) -> Option<&mut T> {
         if self.is_within_bounds(point) {
             let ipoint = point.to_index_point(&self.top_left);
             self.data
@@ -123,12 +135,12 @@ where
     /// Panics if (x, y) is out of bounds
     ///
     /// I wouldn't recommend using this, but it's here anyways
-    pub fn must_get(&self, point: GridPoint) -> &T {
+    pub fn must_get(&self, point: &GridPoint) -> &T {
         let ipoint = point.to_index_point(&self.top_left);
         &self.data[ipoint.y][ipoint.x]
     }
 
-    pub fn set(&mut self, point: GridPoint, value: T) -> Result<(), String> {
+    pub fn set(&mut self, point: &GridPoint, value: T) -> Result<(), String> {
         if self.is_within_bounds(point) {
             let ipoint = point.to_index_point(&self.top_left);
             self.data[ipoint.y][ipoint.x] = value;
@@ -141,7 +153,7 @@ where
     /// Set the value at (x, y), expanding the grid if necessary
     ///
     /// This still disallows setting negative coordinates
-    pub fn set_expand(&mut self, point: GridPoint, value: T) -> Result<(), String> {
+    pub fn set_expand(&mut self, point: &GridPoint, value: T) -> Result<(), String> {
         // println!(
         //     "set_expand({}, _), top_left = {}, dimensions = ({}, {})",
         //     point, self.top_left, self.width, self.height
@@ -237,9 +249,90 @@ where
         Ok(())
     }
 
+    pub fn append_in_direction(
+        &mut self,
+        direction: &CardinalDirection,
+        grid: Grid<T>,
+    ) -> Result<(), String> {
+        match direction {
+            CardinalDirection::North => self.append_north(grid),
+            CardinalDirection::South => self.append_south(grid),
+            CardinalDirection::East => self.append_east(grid),
+            CardinalDirection::West => self.append_west(grid),
+        }
+    }
+
+    fn append_north(&mut self, other: Grid<T>) -> Result<(), String> {
+        if self.width != other.width {
+            return Err(format!(
+                "Cannot append grid of width {} onto grid of width {}",
+                other.width, self.width
+            ));
+        }
+
+        self.height += other.height;
+        self.top_left.y -= other.height as i64;
+        let mut new_data = other.take_data();
+        new_data.append(self.data.as_mut());
+
+        self.data = new_data;
+
+        Ok(())
+    }
+
+    fn append_south(&mut self, other: Grid<T>) -> Result<(), String> {
+        if self.width != other.width {
+            return Err(format!(
+                "Cannot append grid of width {} onto grid of width {}",
+                other.width, self.width
+            ));
+        }
+
+        self.height += other.height;
+        self.data.append(other.take_data().as_mut());
+
+        Ok(())
+    }
+
+    fn append_east(&mut self, other: Grid<T>) -> Result<(), String> {
+        if self.height != other.height {
+            return Err(format!(
+                "Cannot append grid of height {} onto grid of height {}",
+                other.height, self.height
+            ));
+        }
+
+        self.width += other.width;
+        let mut other_data = other.take_data();
+        for y in 0..self.height {
+            self.data[y].append(other_data[y].as_mut());
+        }
+
+        Ok(())
+    }
+
+    fn append_west(&mut self, other: Grid<T>) -> Result<(), String> {
+        if self.height != other.height {
+            return Err(format!(
+                "Cannot append grid of height {} onto grid of height {}",
+                other.height, self.height
+            ));
+        }
+
+        self.width += other.width;
+        self.top_left.x -= other.width as i64;
+        let mut other_data = other.take_data();
+        for (y, mut other_row) in other_data.drain(..).enumerate() {
+            other_row.append(self.data[y].as_mut());
+            self.data[y] = other_row;
+        }
+
+        Ok(())
+    }
+
     pub fn flood<FV, FF>(
         &mut self,
-        point: GridPoint,
+        point: &GridPoint,
         value: &FV,
         is_floodable: &FF,
     ) -> Result<(), String>
@@ -261,10 +354,64 @@ where
 
         // flood the rest
         for neighbor in point.orthogonal_neighbors() {
-            self.flood(neighbor, value, is_floodable)?;
+            self.flood(&neighbor, value, is_floodable)?;
         }
 
         Ok(())
+    }
+
+    pub fn map_all<U>(&mut self, mut map_fn: impl FnMut(&T) -> U) -> Result<Grid<U>, String>
+    where
+        U: Default + std::fmt::Debug + Clone + PartialEq,
+    {
+        let mut new_data = vec![vec![U::default(); self.width]; self.height];
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let new_value = map_fn(&self.data[y][x]);
+                new_data[y][x] = new_value;
+            }
+        }
+        Ok(Grid {
+            top_left: self.top_left,
+            data: new_data,
+            width: self.width,
+            height: self.height,
+        })
+    }
+
+    pub fn set_all_matching(
+        &mut self,
+        predicate: impl FnMut(&T) -> bool,
+        new_element: T,
+    ) -> Result<(), String> {
+        let matches = self
+            .entries_matching(predicate)
+            .map(|entry| entry.point)
+            .collect_vec();
+        for point in matches {
+            self.set(&point, new_element.clone())?;
+        }
+        Ok(())
+    }
+
+    pub fn find(&self, predicate: impl Fn(&T) -> bool) -> Option<GridEntry<&T>> {
+        for entry in self.entries() {
+            if predicate(entry.value) {
+                return Some(entry);
+            }
+        }
+        None
+    }
+
+    pub fn num_matching(&self, predicate: impl Fn(&T) -> bool) -> usize {
+        self.entries_matching(predicate).count()
+    }
+
+    pub fn entries_matching(
+        &self,
+        mut predicate: impl FnMut(&T) -> bool,
+    ) -> impl Iterator<Item = GridEntry<&T>> {
+        self.entries().filter(move |entry| predicate(entry.value))
     }
 
     pub fn entries(&self) -> impl Iterator<Item = GridEntry<&T>> {
@@ -274,6 +421,77 @@ where
                 value,
             })
         })
+    }
+
+    pub fn astar_distance_othogonal(
+        &self,
+        start: &GridPoint,
+        end: &GridPoint,
+        traversable: impl Fn(&T) -> bool,
+    ) -> Option<u64> {
+        let successors = |point: &GridPoint| {
+            point
+                .orthogonal_neighbors()
+                .into_iter()
+                .filter_map(|neighbor| {
+                    // if we're off the map or not traversable, we can't move there
+                    if !self.is_within_bounds(&neighbor) || !traversable(self.must_get(&neighbor)) {
+                        return None;
+                    }
+                    Some((neighbor, 1))
+                })
+        };
+        let heuristic = |point: &GridPoint| start.manhattan_distance_to(point);
+        let success = |point: &GridPoint| point == end;
+
+        pathfinding::directed::astar::astar(start, successors, heuristic, success)
+            .map(|(_, distance)| distance)
+    }
+
+    /// Compute the shortest distance between two points using A*
+    ///
+    /// This assumes that the cache was used for previous calls to `astar_distance_othogonal_with_cache`
+    /// using the same parameters except the starting point
+    pub fn astar_distance_othogonal_with_cache(
+        &self,
+        start: &GridPoint,
+        end: &GridPoint,
+        traversable: impl Fn(&T) -> bool,
+        cache: &mut Grid<Option<u64>>,
+    ) -> Option<u64> {
+        let successors = |point: &GridPoint| {
+            point
+                .orthogonal_neighbors()
+                .into_iter()
+                .filter_map(|neighbor| {
+                    // if we're off the map or not traversable, we can't move there
+                    if !self.is_within_bounds(&neighbor) || !traversable(self.must_get(&neighbor)) {
+                        return None;
+                    }
+
+                    if let Some(cached_cost) = cache.get(&neighbor).unwrap_or(&None) {
+                        Some((end.clone(), *cached_cost + 1))
+                    } else {
+                        Some((neighbor, 1))
+                    }
+                })
+        };
+        let heuristic = |point: &GridPoint| start.manhattan_distance_to(point);
+        let success = |point: &GridPoint| point == end;
+
+        let result = pathfinding::directed::astar::astar(start, successors, heuristic, success);
+
+        match result {
+            Some((path, distance)) => {
+                for (i, point) in path.into_iter().enumerate() {
+                    cache
+                        .set(&point, Some(distance - i as u64))
+                        .expect("failed to set cache");
+                }
+                Some(distance)
+            }
+            None => None,
+        }
     }
 }
 
@@ -424,6 +642,10 @@ impl GridPoint {
             }
         }
         points
+    }
+
+    pub fn manhattan_distance_to(&self, other: &GridPoint) -> u64 {
+        (self.x - other.x).abs() as u64 + (self.y - other.y).abs() as u64
     }
 }
 

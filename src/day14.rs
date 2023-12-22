@@ -56,7 +56,7 @@ impl Platform {
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 spaces.set(
-                    GridPoint {
+                    &GridPoint {
                         x: x as i64,
                         y: y as i64,
                     },
@@ -89,7 +89,7 @@ impl Platform {
 
                     for (y, space) in tilted_column.iter().enumerate() {
                         new_spaces.set(
-                            GridPoint {
+                            &GridPoint {
                                 x: x as i64,
                                 y: y as i64,
                             },
@@ -109,7 +109,7 @@ impl Platform {
 
                     for (x, space) in tilted_row.iter().enumerate() {
                         new_spaces.set(
-                            GridPoint {
+                            &GridPoint {
                                 x: x as i64,
                                 y: y as i64,
                             },

@@ -63,7 +63,7 @@ impl Contraption {
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 tiles.set(
-                    GridPoint {
+                    &GridPoint {
                         x: x as i64,
                         y: y as i64,
                     },
@@ -140,7 +140,7 @@ impl Contraption {
 
         resolved_contraption
             .tiles
-            .get_mut(starting_beam.coords.into())
+            .get_mut(&starting_beam.coords.into())
             .unwrap()
             .beams
             .insert(starting_beam.direction);
@@ -154,7 +154,7 @@ impl Contraption {
             for beam in produced_beams {
                 let affected_tile = resolved_contraption
                     .tiles
-                    .get_mut(beam.coords.into())
+                    .get_mut(&beam.coords.into())
                     .unwrap();
 
                 if !affected_tile.beams.contains(&beam.direction) {
@@ -213,7 +213,7 @@ struct BeamData {
 
 impl BeamData {
     fn resolve(&self, tiles: &Grid<TileData>) -> HashSet<BeamData> {
-        let this_tile_data = tiles.get(self.coords.into()).unwrap();
+        let this_tile_data = tiles.get(&self.coords.into()).unwrap();
 
         let new_directions = this_tile_data.tile.new_beam_directions_from(self.direction);
 
@@ -227,7 +227,7 @@ impl BeamData {
 
         let mut new_beams = HashSet::new();
         for beam in new_beams_unfiltered_vec {
-            if tiles.is_within_bounds(beam.coords.into()) {
+            if tiles.is_within_bounds(&beam.coords.into()) {
                 new_beams.insert(beam);
             }
         }

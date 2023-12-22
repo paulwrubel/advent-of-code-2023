@@ -97,7 +97,7 @@ impl CityMap {
         let mut map = Grid::new_empty(width, height);
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
-                map.set((x, y).into(), c.to_digit(10).unwrap() as u64)?;
+                map.set(&(x, y).into(), c.to_digit(10).unwrap() as u64)?;
             }
         }
 
@@ -169,7 +169,7 @@ impl CityMap {
                     let potential_destination = node
                         .location
                         .neighbor_in_direction_distance(direction, distance);
-                    if self.map.is_within_bounds(potential_destination) {
+                    if self.map.is_within_bounds(&potential_destination) {
                         potential_destinations_with_direction
                             .push((potential_destination, direction));
                     }
@@ -180,13 +180,13 @@ impl CityMap {
 
             for (destination, direction) in potential_destinations_with_direction {
                 // start with the final destination cost, since we know we'll incur at least that
-                let mut cost_increase = *self.map.get(destination).unwrap();
+                let mut cost_increase = *self.map.get(&destination).unwrap();
                 for intermediate_location in node
                     .location
                     .points_between_orthogonal_exclusive(&destination)
                 {
                     // add the cost of each node we traverse on the way there
-                    cost_increase += *self.map.get(intermediate_location).unwrap();
+                    cost_increase += *self.map.get(&intermediate_location).unwrap();
                 }
 
                 // the final cost is the cost to get here + the cost to get there
@@ -261,7 +261,7 @@ impl Path {
         let mut new_grid = Grid::new_empty(grid.width(), grid.height());
         for entry in grid.entries() {
             new_grid.set(
-                entry.point,
+                &entry.point,
                 if show_non_traversed {
                     entry.value.to_string()
                 } else {
@@ -269,7 +269,7 @@ impl Path {
                 },
             )?;
         }
-        new_grid.set(self.nodes[0], "S".to_string())?;
+        new_grid.set(&self.nodes[0], "S".to_string())?;
         for i in 1..self.nodes.len() {
             let this_node = self.nodes[i];
             let prev_node = self.nodes[i - 1];
@@ -277,7 +277,7 @@ impl Path {
             points_to_set.push(this_node);
             let cardinal_char: char = prev_node.direction_to_orthogonal(&this_node)?.into();
             for point in points_to_set {
-                new_grid.set(point, cardinal_char.to_string())?;
+                new_grid.set(&point, cardinal_char.to_string())?;
             }
         }
 
